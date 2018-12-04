@@ -5,6 +5,8 @@ from threading import Thread
 import requests
 import re, json
 
+from ha.commons.server import PrimaryServer, ServerRequestHandler
+
 
 class MockServerRequestHandler(BaseHTTPRequestHandler):
     USERS_PATTERN = re.compile(r'/users')
@@ -62,9 +64,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
     def handle(self):
         # self.request is the TCP socket connected to the client
         self.data = self.request.recv(1024).strip()
-        print("{}:{} sent: {}".format(*self.client_address, self.data))
-        # just send back the same data, but upper-cased
-        self.request.sendall(self.data.upper())
+        # self.request.sendall(self.data.upper())
+        self.request.sendall(self.data)
 
 
 def start_tcp_mock_server(host, port):
@@ -73,3 +74,9 @@ def start_tcp_mock_server(host, port):
     mock_server_thread.setDaemon(True)
     mock_server_thread.start()
 
+
+def start_tcp_main_server(host, port):
+    server = PrimaryServer(ServerRequestHandler,host, port)
+    mock_server_thread = Thread(target=server.serve_forever)
+    mock_server_thread.setDaemon(True)
+    mock_server_thread.start()

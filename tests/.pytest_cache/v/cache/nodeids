@@ -1,0 +1,5 @@
+[
+  "test_clients.py::test_request_get[name]",
+  "test_clients.py::test_request_get[age]",
+  "test_clients.py::test_request_get[school]"
+]

@@ -1,5 +1,5 @@
-from ha.commons.server import ProxyServer, ProxyRequestHandler
-from ha.commons.connection import ClientConn
+from ha.commons.sap_servers import ProxyServer, ProxyRequestHandler
+from ha.commons.connections import ClientConn
 import config as conf
 
 

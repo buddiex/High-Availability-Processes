@@ -6,8 +6,8 @@ import socket
 from typing import Dict
 import config as conf
 from ha.commons.logger import get_module_logger
-from ha.commons.connection import ServerSideClientConn, ClientConn
-from ha.commons.protocol import RespondsePackage
+from ha.commons.connections import ServerSideClientConn, ClientConn
+from ha.commons.services import RespondsePackage
 
 logger = get_module_logger(__name__)
 
@@ -32,11 +32,13 @@ class BaseRequestHandler(object):
         raise NotImplementedError
 
     def send(self):
-        self.client_conn.enqueue(self._json_encode())
+        if not isinstance(self.data, bytes):
+            self.data = self._json_encode()
+        self.client_conn.enqueue(self.data)
         # self.client_conn.send()
 
-    def recv(self):
-        return self.client_conn.recv()
+    def recv(self)->dict:
+        return self._json_load(self.client_conn.recv())
 
     def _json_encode(self) -> bytes:
         rtn = json.dumps(self.data).encode()
@@ -52,11 +54,11 @@ class BaseRequestHandler(object):
 class ProxyRequestHandler(BaseRequestHandler):
 
     def __init__(self, client_conn: ServerSideClientConn, server_conn: ClientConn):
-        super(ProxyRequestHandler, self).__init__(client_conn)
+        super().__init__(client_conn)
         self.server_conn: ClientConn = server_conn
 
     def handle(self):
-        self.data = self._json_load(self.recv())
+        self.data = self.recv()
         self.data['client'] = self.client_conn.peername()
         self.server_conn.enqueue(self._json_encode())
         self.server_conn.send()
@@ -67,26 +69,74 @@ class ProxyRequestHandler(BaseRequestHandler):
         self.send()
 
 
-class ServerRequestHandler(BaseRequestHandler):
+class ServerEchoRequestHandler(BaseRequestHandler):
     def handle(self):
-        # self.request is the TCP socket connected to the client
-        self.data = self._json_load(self.recv())
-        # self.request.sendall(self.data.upper())
+        self.data = self.recv()
         self.send()
 
 
-class HearbeatRequestHandler(BaseRequestHandler):
+class PrimaryServerRequestHandler(BaseRequestHandler):
+
+    def __init__(self, client_conn: ServerSideClientConn, app_to_run):
+        super().__init__(client_conn)
+        self.app_to_run = app_to_run
+
     def handle(self):
-        # self.request is the TCP socket connected to the client
-        self.data = self._json_load(self.recv())
-        # self.request.sendall(self.data.upper())
+        self.data = self.recv()
+        try:
+            method = getattr(self, "do_" + self.data['command'].upper())
+        except Exception as err:
+            logger.error("invalid command {}: {}".format(self.data["command"], err))
+
+        method()
+
+        # self.send()
+
+    def do_GET(self):
+        res = self.app_to_run.get(self.data['payload'])
+        self._pack_response_and_send(res)
+
+    def do_POST(self):
+        res = self.app_to_run.post(self.data['payload'])
+        self._pack_response_and_send(res)
+
+    def do_PUT(self):
+        res = self.app_to_run.put(self.data['payload'])
+        self._pack_response_and_send(res)
+
+    def do_DELETE(self):
+        res = self.app_to_run.delete(self.data['payload'])
+        self._pack_response_and_send(res)
+
+    def _pack_response_and_send(self, res):
+        res = RespondsePackage(status='ok', body=res)
+        res.data['client'] = self.data['client']
+        self.data = res.pack()
         self.send()
+
+
+class HearthBeatRequestHandler(BaseRequestHandler):
+    def handle(self):
+        self.data = self.recv()
+        logger.info("heartbeat recieved: {}".format(self.data))
+        res = RespondsePackage("ACK", "ACK")
+        self.data=res.pack()
+        self.send()
+
+
+class ShutDownRequestHandler(BaseRequestHandler):
+    def handle(self):
+        self.data = self.recv()
+        logger.info("Shutdown recieved: {}".format(self.data))
+
+
+        # self.send()
 
 
 class BaseServer(object):
 
     def __init__(self, request_handler: BaseRequestHandler, hostname: str, port: int,
-                 backlog: int = 100, max_client_count: int = conf.MAX_CLIENT_COUNT):
+                 backlog: int = 100, max_client_count: int = conf.MAX_CLIENT_COUNT, timeout: int = None):
         self.server_type: str = ''
         self._new_conn: bool
         self.socket: socket
@@ -97,6 +147,8 @@ class BaseServer(object):
         self.backlog = backlog
         self.max_client_count = max_client_count
         self.shutdown = False
+        self.timeout = timeout
+        self.app_to_run = ''
 
         self.create_server_socket()
 
@@ -112,6 +164,9 @@ class BaseServer(object):
         except Exception as err:
             raise OSError(f"could not instantiate TCP socket {err}")
         self.socket.setblocking(False)
+
+        if self.timeout:
+            self.socket.settimeout(self.timeout)
 
         # bind this socket to the specified port
         try:
@@ -139,6 +194,7 @@ class BaseServer(object):
             self.socket.setblocking(True)
             logger.info('{} listening on {}:{}'.format(self.server_type, *self.server_address))
         try:
+
             conn, address = self.socket.accept()
             logger.info('client {}:{} added'.format(*conn.getpeername()))
         except Exception as err:
@@ -198,14 +254,17 @@ class BaseServer(object):
         for client_conn in [self.connections[sock.getpeername()] for sock in self._recv_sockets]:
             try:
                 self.process_request(client_conn)
-            except Exception as err:
+            except (ConnectionAbortedError, ConnectionResetError) as err:
                 logger.error("closing connection {}:{}".format(*client_conn.peername()))
                 if client_conn.socket in self._send_sockets:
                     self._send_sockets.remove(client_conn.socket)
                 if client_conn.socket in self._recv_sockets:
                     self._recv_sockets.remove(client_conn.socket)
                 del self.connections[client_conn.peername()]
-                # if conf.DEBUG_MODE: raise
+            except Exception as err:
+                if conf.DEBUG_MODE: raise
+            finally:
+                self._handle_aborted_connection()
 
     def _manage_writable_sockets(self):
         for client_conn in [self.connections[sock.getpeername()] for sock in self._send_sockets]:
@@ -254,8 +313,16 @@ class BaseServer(object):
              -.  on failure, issue error message, remove client from connection_list,
                  and propagate exception to caller for further corrective action
         """
-        handler = self.request_handler(client)
+        if self.app_to_run:
+            handler = self.request_handler(client, self.app_to_run)
+        else:
+            handler = self.request_handler(client)
+
         handler.handle()
+        self.finish_request()
+
+    def finish_request(self):
+        pass
 
     def manage_send_request(self, client: ServerSideClientConn) -> None:
         """  try to output message to this client
@@ -290,19 +357,22 @@ class BaseServer(object):
         logger.info("max connections: {} rejected".format(new_conn.peername()))
         new_conn.close()
 
+    def _handle_aborted_connection(self):
+        pass
+
 
 class PrimaryServer(BaseServer):
-    def __init__(self, request_handler, hostname, port, server_type='primary server'):
-        super(PrimaryServer, self).__init__(request_handler, hostname, port)
+    def __init__(self, request_handler, hostname, port, app_to_run, server_type='primary server'):
+        super().__init__(request_handler, hostname, port)
         self.client_tags = 'clt'
         self.server_type = server_type
-
+        self.app_to_run = app_to_run
 
 class ProxyServer(BaseServer):
 
     def __init__(self, request_handler: ProxyRequestHandler, server_conn: ClientConn, hostname, port,
                  server_type='proxy'):
-        super(ProxyServer, self).__init__(request_handler, hostname, port)
+        super().__init__(request_handler, hostname, port)
         self.client_tags = 'clt'
         self.server_type = server_type
         self.server_conn = server_conn
@@ -317,9 +387,28 @@ class ProxyServer(BaseServer):
         handler.handle()
 
 
-class HeartbeatServer(BaseServer):
+class HeartBeatServer(BaseServer):
 
-    def __init__(self, request_handler, hostname='127.0.0.1', port=8899):
-        super(HeartbeatServer, self).__init__(request_handler, hostname, port)
+    def __init__(self, request_handler: HearthBeatRequestHandler, hostname, port,timeout:int=None,
+                 server_type='heartbeat', Q=None):
+        super().__init__(request_handler, hostname, port, timeout=timeout)
         self.client_tags = 'clt'
-        self.server_type = 'heartbeat'
+        self.server_type = server_type
+        self.Q = Q
+
+    def _handle_aborted_connection(self):
+        logger.info("hearbeat lost")
+        self.Q.put("NO_HEART_BEAT")
+
+
+class ShutdownServer(BaseServer):
+
+    def __init__(self, request_handler: HearthBeatRequestHandler, hostname, port,timeout:int=None,
+                 server_type='shut_down', Q=None):
+        super().__init__(request_handler, hostname, port, timeout=timeout)
+        self.client_tags = 'clt'
+        self.server_type = server_type
+        self.Q = Q
+
+    def finish_request(self):
+        self.Q.put("SHUTDOWN_REQUESTED")

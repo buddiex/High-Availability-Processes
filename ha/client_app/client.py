@@ -1,4 +1,4 @@
-from ha.commons.protocol import Request
+from ha.commons.services import TupleSpaceService
 from ha.commons.logger import get_module_logger
 import config as conf
 from ha.commons.utils import hostname_parser, IPv4_addr_parser, port_parser
@@ -38,14 +38,22 @@ def main():
         # --------------------------------------------------
         #  instantiate and run the client
         # --------------------------------------------------
-        reqest = Request(parsed_args.server_IP, parsed_args.server_port)
+        tp_serivce = TupleSpaceService(parsed_args.server_IP, parsed_args.server_port)
         for i in range(10):
             try:
-                res = reqest.get(f'mm{i}')
+                res = tp_serivce.get(f'mm{i}')
+                print(res.data['payload'])
+                res = tp_serivce.post(f'mm{i}')
+                print(res.data['payload'])
+                res = tp_serivce.put(f'mm{i}')
+                print(res.data['payload'])
+                res = tp_serivce.delete(f'mm{i}')
+                print(res.data['payload'])
             except ConnectionAbortedError as err:
                 #@TODO: implement a wait and retry here
-                raise
-            print(res.data['payload'])
+                pass
+                # raise
+
 
     except Exception as err:
         logger.info('aborting {}'.format(err))

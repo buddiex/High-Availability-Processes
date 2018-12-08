@@ -56,13 +56,13 @@ class BaseConn(object):
             while len(self.residue_from_previous_messages) < k:
                 try:
                     chunk = self.socket.recv(k - len(self.residue_from_previous_messages))
-                except ConnectionResetError as err:
+                except ConnectionAbortedError as err:
                     logger.error("{}:{} - {}".format(*self.socket.getpeername(), err))
                     # self.socket_.close()
                     raise
 
                 if chunk == b'':
-                    raise RuntimeError("socket connection broken")
+                    raise ConnectionAbortedError("socket connection broken")
                 self.residue_from_previous_messages = self.residue_from_previous_messages + chunk
             result, self.residue_from_previous_messages = self.residue_from_previous_messages[:k], \
                                                           self.residue_from_previous_messages[k:]

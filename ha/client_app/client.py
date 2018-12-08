@@ -1,6 +1,6 @@
 from ha.commons.protocol import Request
 from ha.commons.logger import get_module_logger
-import ha.config as conf
+import config as conf
 from ha.commons.utils import hostname_parser, IPv4_addr_parser, port_parser
 import socket
 import random
@@ -39,11 +39,18 @@ def main():
         #  instantiate and run the client
         # --------------------------------------------------
         reqest = Request(parsed_args.server_IP, parsed_args.server_port)
-        res = reqest.get('mm')
-        print(res.data)
+        for i in range(10):
+            try:
+                res = reqest.get(f'mm{i}')
+            except ConnectionAbortedError as err:
+                #@TODO: implement a wait and retry here
+                raise
+            print(res.data['payload'])
 
     except Exception as err:
         logger.info('aborting {}'.format(err))
+        if conf.DEBUG_MODE: raise
+
 
 
 if __name__ == '__main__':

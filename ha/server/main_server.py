@@ -1,5 +1,5 @@
 from ha.commons.server import PrimaryServer, ServerRequestHandler
-import ha.config as conf
+import config as conf
 
 
 def main(host, port):

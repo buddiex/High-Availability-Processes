@@ -1,7 +1,7 @@
 import socket
 import sys
 
-import ha.config as conf
+import config as conf
 
 from .logger import get_module_logger
 

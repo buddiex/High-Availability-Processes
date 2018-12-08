@@ -1,5 +1,5 @@
 import argparse
-import ha.config as conf
+import config as conf
 import socket
 
 

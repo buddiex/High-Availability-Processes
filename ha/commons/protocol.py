@@ -1,10 +1,42 @@
 import time
 import json
-from typing import Union
 
-import ha.config as conf
+import config as conf
 from ha.commons.connection import ClientConn, logger
 from ha.commons.utils import ConnectionError
+
+
+class BasePackage(object):
+    def __init__(self, package_type,cmd, args):
+        self.cmd = cmd
+        self.args = args
+        self.package_type = package_type
+        self.data = {}
+
+    def pack(self)-> dict:
+        if self._validate_request():
+            self.data = {"type": self.package_type,
+                         "command": self.cmd,
+                         "send_time": time.time(),
+                         "payload": self.args}
+        else:
+            raise RuntimeError(f"wrong command format for {self.cmd}: {self.args}")
+
+        return json.dumps(self.data).encode()
+
+    def _validate_request(self):
+        return True
+
+
+class RequestPackage(BasePackage):
+    def __init__(self, cmd, args=''):
+        super(RequestPackage, self).__init__('request', cmd, args )
+
+
+class RespondsePackage(BasePackage):
+
+    def __init__(self, cmd, args=''):
+        super(RespondsePackage, self).__init__('response', cmd, args )
 
 
 class Request(object):
@@ -12,7 +44,7 @@ class Request(object):
     def __init__(self, server_IP, server_port):
         self.server = ClientConn((server_IP, server_port))
         self._connect_to_server()
-        self.data = {}
+        self.data = ''
 
     def get(self, args):
         self._package('GET', args)
@@ -27,17 +59,12 @@ class Request(object):
         return self._send_recv()
 
     def delete(self, args):
-        self._package('PUT', args)
+        self._package('DELETE', args)
         return self._send_recv()
 
     def _package(self, cmd, args):
-        if self._validate_request(cmd, args):
-            out_message = {"command": cmd,
-                           "send_time": time.time(),
-                           "payload": args}
-            self.data.update(out_message)
-        else:
-            raise RuntimeError(f"wrong command format for {cmd}: {args}")
+        pk = RequestPackage(cmd,args)
+        self.data = pk.pack()
 
     def _connect_to_server(self):
         attempts = 0
@@ -58,23 +85,21 @@ class Request(object):
             self._send_message()
             return Respondse(self._recieve_message())
         except Exception as err:
-            logger.info('server terminated connection: {}'.format(err))
-            raise
+            msg = 'server terminated connection: {}'.format(err)
+            logger.info(msg)
+            raise ConnectionAbortedError(msg)
 
-        finally:
-            # self.server.socket.shutdown(socket.SHUT_RDWR)
-            self.server.socket.close()
-            logger.debug("shutting down server connection")
+        # finally:
+        #     # self.server.socket.shutdown(socket.SHUT_RDWR)
+        #     self.server.socket.close()
+        #     logger.debug("shutting down server connection")
 
     def _send_message(self):
-        self.server.enqueue(self._json_encode(self.data))
+        self.server.enqueue(self.data)
         self.server.send()
 
     def _recieve_message(self):
         return self.server.recv()
-
-    def _json_encode(self, msg) -> bytes:
-        return json.dumps(msg).encode()
 
     def _validate_request(self, cmd, args) -> bool:
         # @TODO implement validate of commands

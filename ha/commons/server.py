@@ -3,10 +3,11 @@ import select
 import time
 import socket
 # from queue import Queue
-from typing import Dict, Tuple, List
-import ha.config as conf
+from typing import Dict
+import config as conf
 from ha.commons.logger import get_module_logger
 from ha.commons.connection import ServerSideClientConn, ClientConn
+from ha.commons.protocol import RespondsePackage
 
 logger = get_module_logger(__name__)
 
@@ -14,6 +15,7 @@ logger = get_module_logger(__name__)
 class BaseRequestHandler(object):
     """Base class for request handler classes.
     """
+
     def __init__(self, client_conn: ServerSideClientConn):
         self.client_conn = client_conn
         self.setup()
@@ -64,6 +66,7 @@ class ProxyRequestHandler(BaseRequestHandler):
         self.data = data
         self.send()
 
+
 class ServerRequestHandler(BaseRequestHandler):
     def handle(self):
         # self.request is the TCP socket connected to the client
@@ -76,7 +79,7 @@ class BaseServer(object):
 
     def __init__(self, request_handler: BaseRequestHandler, hostname: str, port: int,
                  backlog: int = 100, max_client_count: int = conf.MAX_CLIENT_COUNT):
-        self.server_type : str = ''
+        self.server_type: str = ''
         self._new_conn: bool
         self.socket: socket
         self.server_address: tuple = (hostname, port)
@@ -225,10 +228,14 @@ class BaseServer(object):
          """
         client_sockets = [sock.socket for sock in self.connections.values()]
         all_channels = all_request_channels = [self.socket] + client_sockets
-        (self._recv_sockets, self._send_sockets, self._error_sockets) = select.select(all_request_channels,
-                                                                                      client_sockets, all_channels,
-                                                                                      timeout)
-        self._new_conn = self.socket in self._recv_sockets
+        (active_sockets, available_response_channels, problem_sockets) = select.select(all_request_channels,
+                                                                                       client_sockets, all_channels,
+                                                                                       timeout)
+
+        self._new_conn = self.socket in active_sockets
+        self._recv_sockets = [socket for socket in active_sockets if socket is not self.socket]
+        self._send_sockets = available_response_channels
+        self._error_sockets = [socket for socket in problem_sockets if socket is not self.socket]
 
         if self.socket in self._error_sockets:
             raise OSError('?? server socket failure')
@@ -269,11 +276,15 @@ class BaseServer(object):
         pass
 
     def reject_connection(self, new_conn: ServerSideClientConn) -> None:
-        pass
+        res = RespondsePackage("ERROR", "cant allow more that {} clients".format(conf.MAX_CLIENT_COUNT))
+        new_conn.enqueue(res.pack())
+        new_conn.send()
+        logger.info("max connections: {} rejected".format(new_conn.peername()))
+        new_conn.close()
 
 
 class PrimaryServer(BaseServer):
-    def __init__(self, request_handler, hostname, port, server_type = 'primary server'):
+    def __init__(self, request_handler, hostname, port, server_type='primary server'):
         super(PrimaryServer, self).__init__(request_handler, hostname, port)
         self.client_tags = 'clt'
         self.server_type = server_type
@@ -282,7 +293,7 @@ class PrimaryServer(BaseServer):
 class ProxyServer(BaseServer):
 
     def __init__(self, request_handler: ProxyRequestHandler, server_conn: ClientConn, hostname, port,
-                 server_type = 'proxy' ):
+                 server_type='proxy'):
         super(ProxyServer, self).__init__(request_handler, hostname, port)
         self.client_tags = 'clt'
         self.server_type = server_type

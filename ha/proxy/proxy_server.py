@@ -1,7 +1,6 @@
-from ha.commons.server import ProxyServer, ServerRequestHandler,  ProxyRequestHandler
+from ha.commons.server import ProxyServer, ProxyRequestHandler
 from ha.commons.connection import ClientConn
-import ha.config as conf
-import threading
+import config as conf
 
 
 def main(host, port):

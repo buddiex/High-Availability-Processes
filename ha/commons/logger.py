@@ -1,5 +1,5 @@
 import logging
-import ha.config as conf
+import config as conf
 
 
 def get_module_logger(mod_name):

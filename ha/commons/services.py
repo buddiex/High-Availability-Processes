@@ -6,7 +6,7 @@ import socket
 import requests
 
 # Local imports...
-from ha.config import BASE_URL
+from config import BASE_URL
 
 USERS_URL = urljoin(BASE_URL, 'users')
 

@@ -75,6 +75,14 @@ class ServerRequestHandler(BaseRequestHandler):
         self.send()
 
 
+class HearbeatRequestHandler(BaseRequestHandler):
+    def handle(self):
+        # self.request is the TCP socket connected to the client
+        self.data = self._json_load(self.recv())
+        # self.request.sendall(self.data.upper())
+        self.send()
+
+
 class BaseServer(object):
 
     def __init__(self, request_handler: BaseRequestHandler, hostname: str, port: int,
@@ -307,3 +315,11 @@ class ProxyServer(BaseServer):
         """
         handler = self.request_handler(client, self.server_conn)
         handler.handle()
+
+
+class HeartbeatServer(BaseServer):
+
+    def __init__(self, request_handler, hostname='127.0.0.1', port=8899):
+        super(HeartbeatServer, self).__init__(request_handler, hostname, port)
+        self.client_tags = 'clt'
+        self.server_type = 'heartbeat'

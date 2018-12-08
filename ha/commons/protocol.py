@@ -41,19 +41,15 @@ class Request(object):
 
     def _connect_to_server(self):
         attempts = 0
-        connected_to_server = False
         while attempts != conf.MAX_CLIENT_CONN_ATTEMPT:
             try:
-                logger.debug(f"connecting to {self.server.addr}")
                 self.server.connect_client_to_socket()
-                connected_to_server = True
                 break
             except Exception as err:
-                raise
                 attempts += 1
                 time.sleep(1)
-        if connected_to_server:
-            logger.info("connected to server {}".format(self.server.peername()))
+                raise
+
         else:
             raise ConnectionError("failed to connect after {} attempts".format(attempts))
 
@@ -77,18 +73,18 @@ class Request(object):
     def _recieve_message(self):
         return self.server.recv()
 
-    def _json_encode(self, msg)-> bytes:
+    def _json_encode(self, msg) -> bytes:
         return json.dumps(msg).encode()
 
-    def _validate_request(self, cmd, args)->bool:
-        #@TODO implement validate of commands
+    def _validate_request(self, cmd, args) -> bool:
+        # @TODO implement validate of commands
         return True
 
 
 class Respondse(object):
-    def __init__(self, msg)->None:
+    def __init__(self, msg) -> None:
         self._respondse = msg
-        self.data : dict = {}
+        self.data: dict = {}
         self._process_response()
 
     def _process_response(self) -> None:
@@ -98,6 +94,6 @@ class Respondse(object):
         else:
             raise RuntimeError(f"wrongly formatted respondse {msg}")
 
-    def _validate_response(self, msg)-> bool:
+    def _validate_response(self, msg) -> bool:
         # @TODO implement validate of respondse
         return True

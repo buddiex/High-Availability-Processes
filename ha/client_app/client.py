@@ -16,13 +16,15 @@ def main():
         parser = argparse.ArgumentParser()
         parser.add_argument('-host', '--server-host', type=hostname_parser, dest='server_host', default=None, )
         parser.add_argument('-ip', '--server-IP', type=IPv4_addr_parser, dest='server_IP', default=None, )
-        parser.add_argument('-port', '--server-port', type=port_parser, dest='server_port', default=conf.PROXY_DEFAULT_PORT, )
+        parser.add_argument('-port', '--server-port', type=port_parser, dest='server_port',
+                            default=conf.PROXY_DEFAULT_PORT, )
         parsed_args = parser.parse_args()
 
         # postprocess host, IP arguments to set default / validate consistency, depending on what's there
         if parsed_args.server_IP is None:
             try:
-                parsed_args.server_IP = socket.gethostbyname(conf.PROXY_DEFAULT_HOST) if parsed_args.server_host is None else \
+                parsed_args.server_IP = socket.gethostbyname(
+                    conf.PROXY_DEFAULT_HOST) if parsed_args.server_host is None else \
                     parsed_args.server_host[1]
             except OSError as err:
                 raise OSError('invalid hostname (%s): %s' % (parsed_args.server_host[0], logger.debug(err)))

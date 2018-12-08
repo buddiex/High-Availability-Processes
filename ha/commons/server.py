@@ -2,10 +2,11 @@ import json
 import select
 import time
 import socket
+# from queue import Queue
 from typing import Dict, Tuple, List
 import ha.config as conf
 from ha.commons.logger import get_module_logger
-from ha.commons.connection import ServerSideClientConn
+from ha.commons.connection import ServerSideClientConn, ClientConn
 
 logger = get_module_logger(__name__)
 
@@ -13,15 +14,14 @@ logger = get_module_logger(__name__)
 class BaseRequestHandler(object):
     """Base class for request handler classes.
     """
-
     def __init__(self, client_conn: ServerSideClientConn):
         self.client_conn = client_conn
         self.setup()
         self.data = {}
-        try:
-            self.handle()
-        finally:
-            self.finish()
+        # try:
+        #     self.handle()
+        # finally:
+        #     self.finish()
 
     def setup(self):
         pass
@@ -31,50 +31,57 @@ class BaseRequestHandler(object):
 
     def send(self):
         self.client_conn.enqueue(self._json_encode())
-        self.client_conn.send()
+        # self.client_conn.send()
 
     def recv(self):
-
         return self.client_conn.recv()
 
-    def _json_encode(self)-> bytes:
-        return json.dumps(self.data).encode()
+    def _json_encode(self) -> bytes:
+        rtn = json.dumps(self.data).encode()
+        return rtn
+
+    def _json_load(self, msg) -> dict:
+        return json.loads(msg)
 
     def finish(self):
         pass
 
 
 class ProxyRequestHandler(BaseRequestHandler):
-    pass
 
+    def __init__(self, client_conn: ServerSideClientConn, server_conn: ClientConn):
+        super(ProxyRequestHandler, self).__init__(client_conn)
+        self.server_conn: ClientConn = server_conn
 
-# class ServerRequestHandler(BaseRequestHandler):
-#     def handle(self):
-#         # self.request is the TCP socket connected to the client
-#         self.data = self.client_conn.socket.recv(1024).strip()
-#         # self.request.sendall(self.data.upper())
-#         self.client_conn.socket.sendall(self.data)
+    def handle(self):
+        self.data = self._json_load(self.recv())
+        self.data['client'] = self.client_conn.peername()
+        self.server_conn.enqueue(self._json_encode())
+        self.server_conn.send()
+        res = self.server_conn.recv()
+        data = self._json_load(res)
+        del data['client']
+        self.data = data
+        self.send()
 
 class ServerRequestHandler(BaseRequestHandler):
     def handle(self):
         # self.request is the TCP socket connected to the client
-        self.data = self.recv().strip()
+        self.data = self._json_load(self.recv())
         # self.request.sendall(self.data.upper())
         self.send()
 
 
-
-
-
 class BaseServer(object):
 
-    def __init__(self, request_handler, hostname: str , port: int,
+    def __init__(self, request_handler: BaseRequestHandler, hostname: str, port: int,
                  backlog: int = 100, max_client_count: int = conf.MAX_CLIENT_COUNT):
-        self.server_type = None
+        self.server_type : str = ''
+        self._new_conn: bool
         self.socket: socket
         self.server_address: tuple = (hostname, port)
         self.connections: Dict[tuple, ServerSideClientConn] = {}
-        self.request_handler  = request_handler
+        self.request_handler = request_handler
         self.client_tags = ''
         self.backlog = backlog
         self.max_client_count = max_client_count
@@ -119,10 +126,10 @@ class BaseServer(object):
         self.socket.setblocking(False)
         if num_of_con == 0:
             self.socket.setblocking(True)
-            logger.info('No clients connected - listening for connections on {} at port {}'.format(*self.server_address))
+            logger.info('{} listening on {}:{}'.format(self.server_type, *self.server_address))
         try:
             conn, address = self.socket.accept()
-            logger.info('client {}:{} added'.format(*self.server_address))
+            logger.info('client {}:{} added'.format(*conn.getpeername()))
         except Exception as err:
             raise ConnectionAbortedError(f"{self.server_type} cannot connect accept client: {err}")
         self.socket.setblocking(False)
@@ -146,46 +153,25 @@ class BaseServer(object):
                 if not self.connections:
                     self.accept_new_connection()
                 try:
-                    (new_conn, recv_sockets, send_sockets, error_sockets) = self.get_all_socket_activities()
-                except:
+                    self.get_all_socket_activities()
+                except Exception as err:
                     raise
 
                 # check for new connection requests
-                if new_conn:
+                if self._new_conn:
                     self.accept_new_connection()
 
-                # drop clients for sockets that have encountered exceptions
-                for error_client_conn in [self.connections[sock.getpeername()] for sock in error_sockets]:
-                    self.manage_problem_client(error_client_conn)
-                    if error_client_conn.socket in recv_sockets:
-                        recv_sockets.remove(error_client_conn.socket)
-                    if error_client_conn.socket in send_sockets:
-                        send_sockets.remove(error_client_conn.socket)
-
+                self._manage_error_socket()
                 # obtain messages from active clients, enqueuing them to send to other clients
-                for client_conn in [self.connections[sock.getpeername()] for sock in recv_sockets]:
-                    try:
-                        self.process_request(client_conn)
-                    except Exception as err:
-                        if client_conn.socket in send_sockets:
-                            send_sockets.remove(client_conn.socket)
-                        if client_conn.socket in recv_sockets:
-                            recv_sockets.remove(client_conn.socket)
-                        del self.connections[client_conn.peername()]
 
-
+                self._manage_readable_sockets()
                 # check for messages to send and the ability to send them
-                for client_conn in [self.connections[sock.getpeername()] for sock in send_sockets]:
-                    try:
-                        self.manage_send_request(client_conn)
-                    except:
-                        pass
-                    #  report exceptions - allow select() loop to recover as needed
 
-                    time.sleep(0.5)
+                self._manage_writable_sockets()
+
+                time.sleep(0.5)
 
             except Exception as err:
-
                 # halt all remaining dialogues with clients, if any
                 try:
                     for conn in self.connections.values():
@@ -195,10 +181,38 @@ class BaseServer(object):
                 # end of all exchanges
                 self.socket.close()
                 logger.info('exiting')
-                if conf.DEBUG_MODE:
-                    raise
+                if conf.DEBUG_MODE: raise
 
-    def get_all_socket_activities(self, timeout: int=5) -> Tuple[bool, List, List, List]:
+    def _manage_readable_sockets(self):
+        for client_conn in [self.connections[sock.getpeername()] for sock in self._recv_sockets]:
+            try:
+                self.process_request(client_conn)
+            except Exception as err:
+                logger.error("closing connection {}:{}".format(*client_conn.peername()))
+                if client_conn.socket in self._send_sockets:
+                    self._send_sockets.remove(client_conn.socket)
+                if client_conn.socket in self._recv_sockets:
+                    self._recv_sockets.remove(client_conn.socket)
+                del self.connections[client_conn.peername()]
+                # if conf.DEBUG_MODE: raise
+
+    def _manage_writable_sockets(self):
+        for client_conn in [self.connections[sock.getpeername()] for sock in self._send_sockets]:
+            try:
+                self.manage_send_request(client_conn)
+            except:
+                pass
+
+    def _manage_error_socket(self):
+        # drop clients for sockets that have encountered exceptions
+        for error_client_conn in [self.connections[sock.getpeername()] for sock in self._error_sockets]:
+            self.manage_problem_client(error_client_conn)
+            if error_client_conn.socket in self._recv_sockets:
+                self._recv_sockets.remove(error_client_conn.socket)
+            if error_client_conn.socket in self._send_sockets:
+                self._send_sockets.remove(error_client_conn.socket)
+
+    def get_all_socket_activities(self, timeout: int = 5) -> None:
         """ select.select() provides a fairly ratty, undifferentiated interface.
              clean it up by
              -.  preprocessing socket inputs per what select.select() wants, then
@@ -211,18 +225,13 @@ class BaseServer(object):
          """
         client_sockets = [sock.socket for sock in self.connections.values()]
         all_channels = all_request_channels = [self.socket] + client_sockets
-        (active_sockets, available_response_channels, problem_sockets) = select.select(all_request_channels,
-                                                                                       client_sockets, all_channels,
-                                                                                       timeout)
-        if self.socket in problem_sockets:
-            raise OSError('?? server socket failure')
+        (self._recv_sockets, self._send_sockets, self._error_sockets) = select.select(all_request_channels,
+                                                                                      client_sockets, all_channels,
+                                                                                      timeout)
+        self._new_conn = self.socket in self._recv_sockets
 
-        return (
-            self.socket in active_sockets,
-            [sock for sock in active_sockets if sock is not self.socket],
-            available_response_channels,
-            [sock for sock in problem_sockets if sock is not self.socket]
-        )
+        if self.socket in self._error_sockets:
+            raise OSError('?? server socket failure')
 
     def process_request(self, client: ServerSideClientConn) -> None:
         """  try to accept and logger.info incoming message from client
@@ -232,7 +241,6 @@ class BaseServer(object):
         """
         handler = self.request_handler(client)
         handler.handle()
-
 
     def manage_send_request(self, client: ServerSideClientConn) -> None:
         """  try to output message to this client
@@ -244,7 +252,7 @@ class BaseServer(object):
         except Exception as err:
             # condition, when encountered, denotes socket closing
             (this_client_host, this_client_port) = client.socket.getpeername()
-            logger.info(
+            logger.error(
                 'closing connection from {}, port {} - {}'.format(this_client_host, this_client_port, err))
             client.close()
             del self.connections[client.address]
@@ -265,16 +273,26 @@ class BaseServer(object):
 
 
 class PrimaryServer(BaseServer):
-
-    def __init__(self, request_handler, hostname='127.0.0.1', port=8899):
+    def __init__(self, request_handler, hostname, port, server_type = 'primary server'):
         super(PrimaryServer, self).__init__(request_handler, hostname, port)
         self.client_tags = 'clt'
-        self.server_type = 'server'
+        self.server_type = server_type
 
 
 class ProxyServer(BaseServer):
 
-    def __init__(self, request_handler, hostname='127.0.0.1', port=8899):
+    def __init__(self, request_handler: ProxyRequestHandler, server_conn: ClientConn, hostname, port,
+                 server_type = 'proxy' ):
         super(ProxyServer, self).__init__(request_handler, hostname, port)
         self.client_tags = 'clt'
-        self.server_type = 'proxy'
+        self.server_type = server_type
+        self.server_conn = server_conn
+
+    def process_request(self, client: ServerSideClientConn) -> None:
+        """  try to accept and logger.info incoming message from client
+             -.  on success, enqueue it for remaining clients
+             -.  on failure, issue error message, remove client from connection_list,
+                 and propagate exception to caller for further corrective action
+        """
+        handler = self.request_handler(client, self.server_conn)
+        handler.handle()

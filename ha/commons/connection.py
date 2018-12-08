@@ -57,15 +57,15 @@ class BaseConn(object):
                 try:
                     chunk = self.socket.recv(k - len(self.residue_from_previous_messages))
                 except ConnectionResetError as err:
-                    print("{} {}".format(self.socket.getpeername(), err))
+                    logger.error("{}:{} - {}".format(*self.socket.getpeername(), err))
                     # self.socket_.close()
                     raise
 
                 if chunk == b'':
                     raise RuntimeError("socket connection broken")
                 self.residue_from_previous_messages = self.residue_from_previous_messages + chunk
-            result, self.residue_from_previous_messages = self.residue_from_previous_messages[
-                                                          :k], self.residue_from_previous_messages[k:]
+            result, self.residue_from_previous_messages = self.residue_from_previous_messages[:k], \
+                                                          self.residue_from_previous_messages[k:]
             return result
 
         # ----------------------------------------------------------
@@ -73,7 +73,7 @@ class BaseConn(object):
         self.socket.setblocking(True)
         byte_count_for_msg = socket.ntohs(int.from_bytes(receive_k_bytes(), byteorder=sys.byteorder, signed=False))
         message = receive_k_bytes(byte_count_for_msg)
-        logger.debug('received {} from {}, port {}'.format(message, *self.peername()))
+        logger.debug('received {} from {}:{}'.format(message, *self.peername()))
         self.socket.setblocking(False)
         return message.decode()
 
@@ -94,6 +94,7 @@ class BaseConn(object):
             #
             # finally, send outgoing byte count, followed by message
             #
+            logger.debug("sending {} to {}:{}".format(encoded_message, *self.socket.getpeername()))
             self.socket.sendall(
                 socket.htons(len(encoded_message)).to_bytes(self.byte_count_size, byteorder=sys.byteorder,
                                                             signed=False) + encoded_message)
@@ -106,16 +107,6 @@ class BaseConn(object):
                 logger.info("*** ", message)
         self.socket.shutdown(socket.SHUT_RDWR)
         self.socket.close()
-    #
-    # def __getattr__(self, attr):
-    #     return getattr(self.socket, attr)
-    #
-    # def __setattr__(self, attr, value):
-    #     if not self.__dict__.get('initialized_', False):
-    #         return super(BaseConnection, self).__setattr__(attr, value)
-    #     if attr in self.__dict__:
-    #         return super(BaseConnection, self).__setattr__(attr, value)
-    #     return super(BaseConnection, self).__setattr__(self.socket, value)
 
 
 class ServerSideClientConn(BaseConn):
@@ -138,10 +129,8 @@ class ClientConn(BaseConn):
         """  configure a socket at specified host and port"""
         self.instantiate_socket()
         # self.socket.setblocking(False)
-        logger.info('connecting to {}:{}'.format(*self.addr))
         try:
             self.socket.connect(self.addr)
+            logger.info('connected to {}:{}'.format(*self.addr))
         except Exception as err:
             raise OSError("couldn't connect to {}:{}- Error: {}".format(self.addr[0], self.addr[1], err))
-
-

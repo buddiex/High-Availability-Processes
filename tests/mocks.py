@@ -5,7 +5,7 @@ from threading import Thread
 import requests
 import re, json
 
-from ha.commons.server import PrimaryServer, ServerRequestHandler
+from ha.commons.sap_servers import PrimaryServer, ServerEchoRequestHandler
 
 
 class MockServerRequestHandler(BaseHTTPRequestHandler):
@@ -76,7 +76,7 @@ def start_tcp_mock_server(host, port):
 
 
 def start_tcp_main_server(host, port):
-    server = PrimaryServer(ServerRequestHandler,host, port)
+    server = PrimaryServer(ServerEchoRequestHandler, host, port)
     mock_server_thread = Thread(target=server.serve_forever)
     mock_server_thread.setDaemon(True)
     mock_server_thread.start()

@@ -92,7 +92,6 @@ if __name__ == "__main__":
 
     parsed_args = parser.parse_args()
     command_line_args.isPrimary = False if parsed_args.is_primary_server is False else True
-
     command_line_args.tuple_space_file = "sample_tuple_file.json"
     command_line_args.shutdown_sap =("localhost",8999)
     command_line_args.heartbeat_sap = ("localhost", 8999)
@@ -103,7 +102,7 @@ if __name__ == "__main__":
     tuple_space_service = TupleSpaceService(command_line_args)
     tuple_space_service.server_script_name = script_name
     tuple_space_service.initialize()
-    tuple_space_service.load_tuple_space()
+    tuple_space_service.start_as_primary()
 
     print(tuple_space_service.tuple_space)
 

@@ -78,14 +78,10 @@ if __name__ == "__main__":
     # Get command line arguments
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-p', '--primary-server',
-                        dest='is_primary_server', default=False)
-    parser.add_argument('-tpfile', '--tuple-space-file',
-                        dest='tuple_space_file', default="sample_tuple_file.json")
-    parser.add_argument('-shutdown', '--shutdown-sap',
-                        dest='shutdown_sap', default=('localhost', 8999))
-    parser.add_argument('-heartbeat', '--heartbeat-sap',
-                        dest='heartbeat_sap', default=('localhost', 8999))
+    parser.add_argument('-p', '--primary-server', dest='is_primary_server', default=False)
+    parser.add_argument('-tpfile', '--tuple-space-file', dest='tuple_space_file', default="sample_tuple_file.json")
+    parser.add_argument('-shutdown', '--shutdown-sap',  dest='shutdown_sap', default=('localhost', 8999))
+    parser.add_argument('-heartbeat', '--heartbeat-sap', dest='heartbeat_sap', default=('localhost', 8999))
 
     parsed_args = parser.parse_args()
 

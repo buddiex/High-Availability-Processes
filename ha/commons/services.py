@@ -5,23 +5,34 @@ from ha.commons.connections import ClientConn, logger
 from ha.commons.utils import ConnectionError
 
 
-class BasePackage(object):
+class TestDict(dict):
+
+    def __init__(self):
+        super().__init__()
+
+    def trying(self):
+        pass
+
+
+
+class BasePackage(dict):
+
     def __init__(self, package_type, cmd, args):
+        super().__init__()
         self.cmd = cmd
         self.args = args
         self.package_type = package_type
-        self.data = {}
 
-    def pack(self) -> dict:
+    def serialize(self) -> dict:
         if self._validate_request():
-            self.data.update({"type": self.package_type,
+            self.update({"type": self.package_type,
                               "status" if self.package_type == 'response' else "command": self.cmd,
                               "send_time": time.time(),
                               "payload": self.args})
         else:
             raise RuntimeError(f"wrong command format for {self.cmd}: {self.args}")
 
-        return json.dumps(self.data).encode()
+        return json.dumps(self).encode()
 
     def _validate_request(self):
         return True
@@ -64,7 +75,7 @@ class BaseService:
 
     def _package(self, cmd, args):
         pk = RequestPackage(cmd, args)
-        self.data = pk.pack()
+        self.data = pk.serialize()
 
     def _connect_to_server(self):
         attempts = 0

@@ -110,8 +110,8 @@ class PrimaryServerRequestHandler(BaseRequestHandler):
 
     def _pack_response_and_send(self, res):
         res = RespondsePackage(status='ok', body=res)
-        res.data['client'] = self.data['client']
-        self.data = res.pack()
+        res['client'] = self.data['client']
+        self.data = res.serialize()
         self.send()
 
 
@@ -120,7 +120,7 @@ class HearthBeatRequestHandler(BaseRequestHandler):
         self.data = self.recv()
         logger.info("heartbeat recieved: {}".format(self.data))
         res = RespondsePackage("ACK", "ACK")
-        self.data=res.pack()
+        self.data=res.serialize()
         self.send()
 
 
@@ -352,7 +352,7 @@ class BaseServer(object):
 
     def reject_connection(self, new_conn: ServerSideClientConn) -> None:
         res = RespondsePackage("ERROR", "cant allow more that {} clients".format(conf.MAX_CLIENT_COUNT))
-        new_conn.enqueue(res.pack())
+        new_conn.enqueue(res.serialize())
         new_conn.send()
         logger.info("max connections: {} rejected".format(new_conn.peername()))
         new_conn.close()

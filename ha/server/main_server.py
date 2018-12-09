@@ -1,30 +1,13 @@
-from ha.commons.sap_servers import PrimaryServer, PrimaryServerRequestHandler, ServerEchoRequestHandler, HeartBeatServer, HearthBeatRequestHandler, ShutdownServer, ShutDownRequestHandler
+from ha.commons.sap_servers import PrimaryServer, PrimaryServerRequestHandler, HeartBeatServer, HearthBeatRequestHandler, ShutdownServer, ShutDownRequestHandler
 import config as conf
 from queue import Queue
 import threading
 import time
 from ha.commons.logger import get_module_logger
-
+from ha.server.tuplespace_app import TupleSpaceApp
 
 logger = get_module_logger(__name__)
 
-
-class TupleSpaceApp:
-
-    def __init__(self):
-        pass
-
-    def get(self, data):
-        return "do get"
-
-    def post(self, data):
-        return "do post"
-
-    def put(self, data):
-        return "do put"
-
-    def delete(self, data):
-        return "do delete"
 
 def test_other_sap_servers():
     thread_Q = Queue()
@@ -44,12 +27,14 @@ def test_other_sap_servers():
         except:
             pass
 
+
+
 def main(host, port):
-    app_to_run = TupleSpaceApp()
+    app_to_run = TupleSpaceApp(' ')
     server = PrimaryServer(PrimaryServerRequestHandler,host, port, app_to_run)
     server.serve_forever()
     # test_other_sap_servers()
 
 
 if __name__ == '__main__':
-    main(conf.SERVER_DEFAULT_HOST, conf.SERVER_DEFAULT_PORT)
+    main(conf.PRIMARY_SERVER_2_PROXY_IP, conf.PRIMARY_SERVER_2_PROXY_PORT)

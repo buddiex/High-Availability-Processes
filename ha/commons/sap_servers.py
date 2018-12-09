@@ -109,7 +109,7 @@ class PrimaryServerRequestHandler(BaseRequestHandler):
         self._pack_response_and_send(res)
 
     def _pack_response_and_send(self, res):
-        res = RespondsePackage(status='ok', body=res)
+        res = RespondsePackage(status=res.split(":")[0], body=res.split(":")[1])
         res['client'] = self.data['client']
         self.data = res.serialize()
         self.send()

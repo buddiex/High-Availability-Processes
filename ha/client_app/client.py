@@ -14,41 +14,47 @@ def main():
     try:
         # set up to acquire arguments from command line
         parser = argparse.ArgumentParser()
-        parser.add_argument('-host', '--server-host', type=hostname_parser, dest='server_host', default=None, )
-        parser.add_argument('-ip', '--server-IP', type=IPv4_addr_parser, dest='server_IP', default=None, )
-        parser.add_argument('-port', '--server-port', type=port_parser, dest='server_port',
-                            default=conf.PROXY_DEFAULT_PORT, )
+        # parser.add_argument('-host', '--server-host', type=hostname_parser, dest='server_host', default=None, )
+        # parser.add_argument('-ip', '--server-IP', type=IPv4_addr_parser, dest='server_IP', default=conf.PROXY_2_CLIENT_IP, )
+        # parser.add_argument('-port', '--server-port', type=port_parser, dest='server_port', default=conf.PROXY_2_CLIENT_PORT, )
+
+        parser.add_argument('-ip', '--server-IP', dest='server_IP', default=conf.PROXY_2_CLIENT_IP, )
+        parser.add_argument('-port', '--server-port', type=port_parser, dest='server_port', default=conf.PROXY_2_CLIENT_PORT, )
+
         parsed_args = parser.parse_args()
 
-        # postprocess host, IP arguments to set default / validate consistency, depending on what's there
-        if parsed_args.server_IP is None:
-            try:
-                parsed_args.server_IP = socket.gethostbyname(
-                    conf.PROXY_DEFAULT_HOST) if parsed_args.server_host is None else \
-                    parsed_args.server_host[1]
-            except OSError as err:
-                raise OSError('invalid hostname (%s): %s' % (parsed_args.server_host[0], logger.debug(err)))
-        else:
-            specified_IP, specified_host, actual_IP = parsed_args.server_host[1], parsed_args.server_host[
-                0], parsed_args.server_IP
-            syndrome = "specified IP address {} for server host {} differs from actual IP address {}".format(
-                specified_IP, specified_host, actual_IP)
-            assert parsed_args.server_host[1] == parsed_args.server_IP, syndrome
+
+        # # postprocess host, IP arguments to set default / validate consistency, depending on what's there
+        # if parsed_args.server_IP is None:
+        #     try:
+        #         parsed_args.server_IP = socket.gethostbyname(conf.PROXY_2_CLIENT_IP) if parsed_args.server_host is None else \
+        #             parsed_args.server_host[1]
+        #     except OSError as err:
+        #         raise OSError('invalid hostname (%s): %s' % (parsed_args.server_host[0], logger.debug(err)))
+        # else:
+        #     specified_IP, specified_host, actual_IP = parsed_args.server_host[1], parsed_args.server_host[
+        #         0], parsed_args.server_IP
+        #     syndrome = "specified IP address {} for server host {} differs from actual IP address {}".format(
+        #         specified_IP, specified_host, actual_IP)
+        #     assert parsed_args.server_host[1] == parsed_args.server_IP, syndrome
 
         # --------------------------------------------------
         #  instantiate and run the client
         # --------------------------------------------------
         tp_serivce = TupleSpaceService(parsed_args.server_IP, parsed_args.server_port)
-        for i in range(10):
+        for i in range(1):
             try:
-                res = tp_serivce.get(f'mm{i}')
+                keyExpr = "fal*"
+                valExpr = ""
+                res = tp_serivce.get(keyExpr, valExpr)
                 print(res.data['payload'])
-                res = tp_serivce.post(f'mm{i}')
-                print(res.data['payload'])
-                res = tp_serivce.put(f'mm{i}')
-                print(res.data['payload'])
-                res = tp_serivce.delete(f'mm{i}')
-                print(res.data['payload'])
+                print(res.data['status'])
+                # res = tp_serivce.post(f'mm{i}')
+                # print(res.data['payload'])
+                # res = tp_serivce.put(f'mm{i}')
+                # print(res.data['payload'])
+                # res = tp_serivce.delete(f'mm{i}')
+                # print(res.data['payload'])
             except ConnectionAbortedError as err:
                 #@TODO: implement a wait and retry here
                 pass

@@ -14,7 +14,6 @@ class TestDict(dict):
         pass
 
 
-
 class BasePackage(dict):
 
     def __init__(self, package_type, cmd, args):
@@ -122,7 +121,8 @@ class TupleSpaceService(BaseService):
     def __init__(self, server_IP, server_port):
         super().__init__(server_IP, server_port)
 
-    def get(self, args):
+    def get(self, key,value):
+        args = f"('{key}', '{value}')"
         self._package('GET', args)
         return self._send_recv()
 

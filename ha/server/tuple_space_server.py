@@ -56,7 +56,7 @@ class TupleSpaceService:
         """ Start backup service with specific arguments"""
         # use os.getpid() get process id that can be used to kill the primary process
         # add additional parameters for the backup service
-        backup_start_cmd = """python "{}"-tpfile "{}" -tpsap "{}" -shutdown "{}" -heartbeat "{}" -backup "{}" -bk_shutdown "{}" -proxy "{}" --is_primary "{}" -primary_id "{}"
+        backup_start_cmd = """python server "{}"-tpfile "{}" -tpsap "{}" -shutdown "{}" -heartbeat "{}" -backup "{}" -bk_shutdown "{}" -proxy "{}" --is_primary "{}" -primary_id "{}"
         """.format(self.server_script_name,
                    self.parsed_args.tuple_space_file,
                    (conf.PRIMARY_SERVER_2_PROXY_IP, conf.PRIMARY_SERVER_2_PROXY_PORT),

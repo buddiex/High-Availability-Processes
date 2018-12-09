@@ -1,6 +1,8 @@
+import subprocess
 import sys
 import argparse
 import os
+import time
 from ha.commons.logger import get_module_logger
 import config as conf
 
@@ -36,9 +38,19 @@ class TupleSpaceService:
                 self.start_as_backup()
         except Exception:
             raise
+        
+    def text_backup_start(self):
+
+        with open("backup_start_test.txt", "w") as bk:
+            bk.write(str(os.getpid()) + '\n')
+            for i in range(10):
+                bk.write(str(i)+'\n')
+                time.sleep(1)
 
     def start_as_backup(self):
-        pass
+        logger.debug("server starting as backup")
+        self.text_backup_start()
+        logger.debug("backup server started")
 
     def start_as_primary(self):
         logger.info("Starting primary service")
@@ -46,6 +58,7 @@ class TupleSpaceService:
         self.app.load_tuple_space()
 
         self.start_backup()
+
         # self.start_heartbeat_socket()
 
         # server = PrimaryServer(PrimaryServerRequestHandler, host, port, app_to_run)
@@ -56,7 +69,7 @@ class TupleSpaceService:
         """ Start backup service with specific arguments"""
         # use os.getpid() get process id that can be used to kill the primary process
         # add additional parameters for the backup service
-        backup_start_cmd = """python server "{}"-tpfile "{}" -tpsap "{}" -shutdown "{}" -heartbeat "{}" -backup "{}" -bk_shutdown "{}" -proxy "{}" --is_primary "{}" -primary_id "{}"
+        backup_start_cmd = """python "{}" server -tpfile "{}" -tpsap "{}" -shutdown "{}" -heartbeat "{}" -backup "{}" -bk_shutdown "{}" -proxy "{}" --is_primary "{}" -primary_id "{}"
         """.format(self.server_script_name,
                    self.parsed_args.tuple_space_file,
                    (conf.PRIMARY_SERVER_2_PROXY_IP, conf.PRIMARY_SERVER_2_PROXY_PORT),
@@ -70,18 +83,17 @@ class TupleSpaceService:
                    )
         print(backup_start_cmd)
 
-        backup_args = self.raw_command_args + ['-primary_id', str(os.getpid()), '-b', 'yes']
-        # cmd =
-        # if the backup can't be started, write the tuple space to file
-        # try:
-        #     logger.info("Starting backup service")
-        #
-        #     subprocess.Popen(["python", self.server_script_name] + backup_args, shell=False)
-        # except:
-        #     raise
-        #     if self.tuple_space is not None:
-        #         with open(self.tuple_space_file, "w") as file:
-        #             file.write(self.tuple_space)
+
+        #if the backup can't be started, write the tuple space to file
+        try:
+            logger.info("Starting backup service")
+
+            subprocess.Popen(backup_start_cmd, shell=False)
+        except:
+            raise
+            if self.tuple_space is not None:
+                with open(self.tuple_space_file, "w") as file:
+                    file.write(self.tuple_space)
 
     def start_heartbeat_socket(self):
         pass

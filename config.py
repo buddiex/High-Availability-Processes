@@ -18,6 +18,8 @@ PRIMARY_SERVER_SHUTDOWN_IP = 'localhost'  # default to server on this host
 PRIMARY_SERVER_SHUTDOWN_PORT = 9996  # default to port 10000 on this host
 PRIMARY_SERVER_HEARTBEAT_IP = 'localhost'  # default to server on this host
 PRIMARY_SERVER_HEARTBEAT_PORT = 9995  # default to port 10000 on this host
+PRIMARY_SERVER_UPDATE_IP = 'localhost'  # default to server on this host
+PRIMARY_SERVER_UPDATE_PORT = 9990  # default to port 10000 on this host
 
 
 BACKUP_SERVER_2_PROXY_IP = 'localhost'  # default to server on this host
@@ -30,7 +32,7 @@ BACKUP_SERVER_UPDATE_IP = 'localhost'  # default to server on this host
 BACKUP_SERVER_UPDATE_PORT = 9991  # default to port 10000 on this host
 
 
-TUPLE_SPACE_JSON = "sample_tuple_file.json"
+TUPLE_SPACE_JSON = "sample_tuple_file.db.json"
 
 MAX_CLIENT_CONN_ATTEMPT = 5
 MAX_CLIENT_COUNT = 5

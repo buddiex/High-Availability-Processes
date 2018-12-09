@@ -1,4 +1,4 @@
-from ha.commons.services import TupleSpaceService
+from ha.commons.services import TupleSpaceServer
 from ha.commons.logger import get_module_logger
 import config as conf
 from ha.commons.utils import hostname_parser, IPv4_addr_parser, port_parser
@@ -41,7 +41,7 @@ def main():
         # --------------------------------------------------
         #  instantiate and run the client
         # --------------------------------------------------
-        tp_serivce = TupleSpaceService(parsed_args.server_IP, parsed_args.server_port)
+        tp_serivce = TupleSpaceServer(parsed_args.server_IP, parsed_args.server_port)
         for i in range(1):
             try:
                 keyExpr = "fal*"

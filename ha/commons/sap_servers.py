@@ -2,12 +2,12 @@ import json
 import select
 import time
 import socket
-# from queue import Queue
+from queue import Empty
 from typing import Dict
 import config as conf
 from ha.commons.logger import get_module_logger
 from ha.commons.connections import ServerSideClientConn, ClientConn
-from ha.commons.services import RespondsePackage
+from ha.commons.clients import RespondsePackage
 
 logger = get_module_logger(__name__)
 
@@ -16,9 +16,10 @@ class BaseRequestHandler(object):
     """Base class for request handler classes.
     """
 
-    def __init__(self, client_conn: ServerSideClientConn):
+    def __init__(self, client_conn: ServerSideClientConn, pass_to_handler):
         self.client_conn = client_conn
         self.setup()
+        self.pass_to_handler = pass_to_handler
         self.data = {}
         # try:
         #     self.handle()
@@ -54,15 +55,14 @@ class BaseRequestHandler(object):
 class ProxyRequestHandler(BaseRequestHandler):
 
     def __init__(self, client_conn: ServerSideClientConn, server_conn: ClientConn):
-        super().__init__(client_conn)
-        self.server_conn: ClientConn = server_conn
+        super().__init__(client_conn, server_conn)
 
     def handle(self):
         self.data = self.recv()
         self.data['client'] = self.client_conn.peername()
-        self.server_conn.enqueue(self._json_encode())
-        self.server_conn.send()
-        res = self.server_conn.recv()
+        self.pass_to_handler.enqueue(self._json_encode())
+        self.pass_to_handler.send()
+        res = self.pass_to_handler.recv()
         data = self._json_load(res)
         del data['client']
         self.data = data
@@ -78,8 +78,8 @@ class ServerEchoRequestHandler(BaseRequestHandler):
 class PrimaryServerRequestHandler(BaseRequestHandler):
 
     def __init__(self, client_conn: ServerSideClientConn, app_to_run):
-        super().__init__(client_conn)
-        self.app_to_run = app_to_run
+        super().__init__(client_conn, app_to_run)
+
 
     def handle(self):
         self.data = self.recv()
@@ -93,19 +93,19 @@ class PrimaryServerRequestHandler(BaseRequestHandler):
         # self.send()
 
     def do_GET(self):
-        res = self.app_to_run.get(self.data['payload'])
+        res = self.pass_to_handler.get(self.data['payload'])
         self._pack_response_and_send(res)
 
     def do_POST(self):
-        res = self.app_to_run.post(self.data['payload'])
+        res = self.pass_to_handler.post(self.data['payload'])
         self._pack_response_and_send(res)
 
     def do_PUT(self):
-        res = self.app_to_run.put(self.data['payload'])
+        res = self.pass_to_handler.put(self.data['payload'])
         self._pack_response_and_send(res)
 
     def do_DELETE(self):
-        res = self.app_to_run.delete(self.data['payload'])
+        res = self.pass_to_handler.delete(self.data['payload'])
         self._pack_response_and_send(res)
 
     def _pack_response_and_send(self, res):
@@ -116,21 +116,27 @@ class PrimaryServerRequestHandler(BaseRequestHandler):
 
 
 class HearthBeatRequestHandler(BaseRequestHandler):
+    def __init__(self, client_conn: ServerSideClientConn, thread_Q):
+        super().__init__(client_conn, thread_Q)
+        self.thread_Q = thread_Q
+
     def handle(self):
         self.data = self.recv()
-        logger.info("heartbeat recieved: {}".format(self.data))
+        logger.debug("heartbeat recieved: {}".format(self.data))
+        self.pass_to_handler.put(self.data)
         res = RespondsePackage("ACK", "ACK")
         self.data=res.serialize()
         self.send()
 
 
 class ShutDownRequestHandler(BaseRequestHandler):
+    def __init__(self, client_conn: ServerSideClientConn, thread_Q):
+        super().__init__(client_conn, thread_Q)
+
     def handle(self):
         self.data = self.recv()
         logger.info("Shutdown recieved: {}".format(self.data))
-
-
-        # self.send()
+        self.pass_to_handler.put(self.data)
 
 
 class BaseServer(object):
@@ -148,7 +154,7 @@ class BaseServer(object):
         self.max_client_count = max_client_count
         self.shutdown = False
         self.timeout = timeout
-        self.app_to_run = ''
+        self.pass_to_handler = ''
 
         self.create_server_socket()
 
@@ -193,11 +199,12 @@ class BaseServer(object):
         self.socket.setblocking(False)
         if num_of_con == 0:
             self.socket.setblocking(True)
-            logger.info('{} listening on {}:{}'.format(self.server_type, *self.server_address))
+            logger.info('{} service listening on {}:{}'.format(self.server_type, *self.server_address))
         try:
 
             conn, address = self.socket.accept()
             logger.info('client {}:{} added'.format(*conn.getpeername()))
+
         except Exception as err:
             raise ConnectionAbortedError(f"{self.server_type} cannot connect accept client: {err}")
         self.socket.setblocking(False)
@@ -237,7 +244,9 @@ class BaseServer(object):
 
                 self._manage_writable_sockets()
 
-                time.sleep(0.5)
+                self.monitor_loop()
+
+                time.sleep(0.1)
 
             except Exception as err:
                 # halt all remaining dialogues with clients, if any
@@ -262,10 +271,10 @@ class BaseServer(object):
                 if client_conn.socket in self._recv_sockets:
                     self._recv_sockets.remove(client_conn.socket)
                 del self.connections[client_conn.peername()]
-            except Exception as err:
-                if conf.DEBUG_MODE: raise
-            finally:
                 self._handle_aborted_connection()
+            except Exception as err:
+                self._handle_aborted_connection()
+                if conf.DEBUG_MODE: raise
 
     def _manage_writable_sockets(self):
         for client_conn in [self.connections[sock.getpeername()] for sock in self._send_sockets]:
@@ -314,10 +323,7 @@ class BaseServer(object):
              -.  on failure, issue error message, remove client from connection_list,
                  and propagate exception to caller for further corrective action
         """
-        if self.app_to_run:
-            handler = self.request_handler(client, self.app_to_run)
-        else:
-            handler = self.request_handler(client)
+        handler = self.request_handler(client, self.pass_to_handler)
 
         handler.handle()
         self.finish_request()
@@ -361,13 +367,33 @@ class BaseServer(object):
     def _handle_aborted_connection(self):
         pass
 
+    def monitor_loop(self):
+        pass
 
-class PrimaryServer(BaseServer):
+
+class MainServer(BaseServer):
     def __init__(self, request_handler, hostname, port, app_to_run, server_type='primary server'):
         super().__init__(request_handler, hostname, port)
         self.client_tags = 'clt'
         self.server_type = server_type
-        self.app_to_run = app_to_run
+        self.pass_to_handler = app_to_run
+
+class PrimaryServer(MainServer):
+    def __init__(self, request_handler, hostname, port, app_to_run, server_type='primary server'):
+        super().__init__(request_handler, hostname, port)
+        self.client_tags = 'clt'
+        self.server_type = server_type
+        self.pass_to_handler = app_to_run
+
+    def monitor_loop(self):
+        pass
+        # try:
+        #     logger.info("waiting for first heartbeat")
+        #     data = self.pass_to_handler.get(False)
+        # except Empty:
+        #     pass
+
+
 
 class ProxyServer(BaseServer):
 
@@ -395,21 +421,21 @@ class HeartBeatServer(BaseServer):
         super().__init__(request_handler, hostname, port, timeout=timeout)
         self.client_tags = 'clt'
         self.server_type = server_type
-        self.Q = Q
+        self.pass_to_handler = Q
 
     def _handle_aborted_connection(self):
         logger.info("hearbeat lost")
-        self.Q.put("NO_HEART_BEAT")
+        self.pass_to_handler.put("NO_HEART_BEAT")
 
 
 class ShutdownServer(BaseServer):
 
-    def __init__(self, request_handler: HearthBeatRequestHandler, hostname, port,timeout:int=None,
+    def __init__(self, request_handler: ShutDownRequestHandler, hostname, port,timeout:int=None,
                  server_type='shut-down', Q=None):
         super().__init__(request_handler, hostname, port, timeout=timeout)
         self.client_tags = 'clt'
         self.server_type = server_type
-        self.Q = Q
+        self.pass_to_handler = Q
 
-    def finish_request(self):
-        self.Q.put("SHUTDOWN_REQUESTED")
+    # def finish_request(self):
+    #     self.Q.put("SHUTDOWN_REQUESTED")

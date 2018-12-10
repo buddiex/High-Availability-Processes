@@ -1,4 +1,4 @@
-from ha.commons.sap_servers import PrimaryServer, PrimaryServerRequestHandler, HeartBeatServer, HearthBeatRequestHandler, ShutdownServer, ShutDownRequestHandler
+from ha.commons.sap_servers import MainServer, PrimaryServerRequestHandler, HeartBeatServer, HearthBeatRequestHandler, ShutdownServer, ShutDownRequestHandler
 import config as conf
 from queue import Queue
 import threading
@@ -31,7 +31,7 @@ def test_other_sap_servers():
 
 def main(host, port):
     app_to_run = TupleSpaceApp(' ')
-    server = PrimaryServer(PrimaryServerRequestHandler,host, port, app_to_run)
+    server = MainServer(PrimaryServerRequestHandler, host, port, app_to_run)
     server.serve_forever()
     # test_other_sap_servers()
 

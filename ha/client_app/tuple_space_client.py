@@ -1,4 +1,4 @@
-from ha.commons.services import TupleSpaceServer
+from ha.commons.clients import TupleSpaceClient
 from ha.commons.logger import get_module_logger
 import config as conf
 from ha.commons.utils import hostname_parser, IPv4_addr_parser, port_parser
@@ -41,8 +41,8 @@ def main():
         # --------------------------------------------------
         #  instantiate and run the client
         # --------------------------------------------------
-        tp_service = TupleSpaceServer(parsed_args.server_IP, parsed_args.server_port)
-        for i in range(1):
+        tp_service = TupleSpaceClient(parsed_args.server_IP, parsed_args.server_port)
+        for i in range(10):
             try:
                 keyExpr = "^f"
                 valExpr = ".*"
@@ -54,26 +54,17 @@ def main():
                 print(res.data['payload'])
                 print(res.data['status'])
 
-
                 res = tp_service.put('[("fal","niyi"),("gal","heyes"),("zal","heyes"),("galoolll","heyes")]')
                 print(res.data['payload'])
-
-                # keyExpr1 = "^f"
-                # valExpr1 = ".*"
-                # res = tp_service.delete(keyExpr1,valExpr1)
-                # print(res.data['payload'])
-                #
 
             except ConnectionAbortedError as err:
                 #@TODO: implement a wait and retry here
                 pass
                 # raise
-
-
+    #
     except Exception as err:
         logger.info('aborting {}'.format(err))
         if conf.DEBUG_MODE: raise
-
 
 
 if __name__ == '__main__':

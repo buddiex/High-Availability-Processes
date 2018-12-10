@@ -2,9 +2,9 @@ import unittest
 import pytest
 import socket
 from unittest.mock import patch
-from ha.commons.sap_servers import PrimaryServer, ServerEchoRequestHandler
+from ha.commons.sap_servers import MainServer, ServerEchoRequestHandler
 from tests.mocks import start_mock_server, get_free_port, start_tcp_main_server
-from ha.commons.services import TupleSpaceServer
+from ha.commons.clients import TupleSpaceClient
 
 
 @pytest.fixture()
@@ -12,7 +12,7 @@ def server():
     HOST = "localhost"
     port = 9999
     start_tcp_main_server(HOST, port)
-    req = TupleSpaceServer(HOST, port)
+    req = TupleSpaceClient(HOST, port)
     return req
 
 def client(message):

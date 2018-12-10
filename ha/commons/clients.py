@@ -65,14 +65,14 @@ class Respondse:
         return True
 
 
-class BaseServer:
+class BaseClient:
 
     def __init__(self, server_IP, server_port):
         self.server = ClientConn((server_IP, server_port))
         self._connect_to_server()
         self.data = ''
 
-    def _package(self, cmd, args):
+    def _package(self, cmd, args=''):
         pk = RequestPackage(cmd, args)
         self.data = pk.serialize()
 
@@ -116,7 +116,7 @@ class BaseServer:
         return True
 
 
-class TupleSpaceServer(BaseServer):
+class TupleSpaceClient(BaseClient):
 
     def __init__(self, server_IP, server_port):
         super().__init__(server_IP, server_port)
@@ -144,17 +144,24 @@ class TupleSpaceServer(BaseServer):
         return self._send_recv()
 
 
-class HearBeatServer(BaseServer):
+class HearBeatClient(BaseClient):
 
     def __init__(self, server_IP, server_port):
         super().__init__(server_IP, server_port)
+        self.counter = 0
 
-    def heart_beat(self):
-        self._package('HB', '')
-        return self._send_recv()
+    def send_heartbeat(self):
+        while True:
+            self._package('BEAT', 'HB-'+str(self.counter))
+            self._send_recv()
+            logger.debug("heartbeat sent")
+            self.counter += 1
+            if self.counter == 5:
+                raise RuntimeError('shutdown')
+            time.sleep(conf.BEAT_PERIOD)
 
 
-class ShortDownServer(BaseServer):
+class ShortDownClient(BaseClient):
 
     def __init__(self, server_IP, server_port):
         super().__init__(server_IP, server_port)

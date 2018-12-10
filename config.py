@@ -33,7 +33,8 @@ BACKUP_SERVER_HEARTBEAT_PORT = 9992  # default to port 10000 on this host
 BACKUP_SERVER_UPDATE_IP = 'localhost'  # default to server on this host
 BACKUP_SERVER_UPDATE_PORT = 9991  # default to port 10000 on this host
 
-HEARTBEAT_WAIT_TIME = 1
+HEARTBEAT_WAIT_TIME = 5
+BEAT_PERIOD = 2
 
 TUPLE_SPACE_JSON = "sample_tuple_file.db.json"
 

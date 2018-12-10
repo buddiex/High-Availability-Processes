@@ -6,10 +6,11 @@ import threading
 import time
 from queue import Queue, Empty
 
+from ha.commons.clients import HearBeatClient
 from ha.commons.logger import get_module_logger
 import config as conf
 from ha.commons.sap_servers import HearthBeatRequestHandler, HeartBeatServer, ShutdownServer, ShutDownRequestHandler, \
-    PrimaryServer, PrimaryServerRequestHandler
+    MainServer, PrimaryServerRequestHandler
 from ha.server.tuple_space_app.tuplespace_app import TupleSpaceApp
 
 logger = get_module_logger(__name__)
@@ -21,12 +22,14 @@ class TupleSpaceService:
         self.all_threads = []
         self.parsed_args = parsed_args
         self.isPrimary = parsed_args.is_primary
+        self.name = 'primary' if parsed_args.is_primary else 'backup'
         self.server_script_name = ""
         self.primary_process_id = ""
         self.backup_process_id = ""
         self.app = app
         # Get command line arguments to be used by backup_service
         self.raw_command_args = sys.argv[1:]
+
 
     def initialize(self):
         """ Initial Tuple Space service"""
@@ -52,29 +55,28 @@ class TupleSpaceService:
 
         self.app.init()
         self.start_shutdown_socket()
-        # self.start_backup()
+        self.start_backup()
         self.start_heartbeat_socket()
-        # self.get_first_heartbeat()
-        server = PrimaryServer(PrimaryServerRequestHandler,
-                                self.parsed_args.tp_sap[0],
-                                self.parsed_args.tp_sap[1],
-                                self.app)
+        self.get_first_heartbeat()
+        logger.info('starting primary server')
+        server = MainServer(PrimaryServerRequestHandler,
+                            self.parsed_args.tp_sap[0],
+                            self.parsed_args.tp_sap[1],
+                            self.app)
         server.serve_forever()
 
     def start_as_backup(self):
         logger.debug("server starting as backup")
-        self.delete_this_test_backup_start()
-        self.app.init()
+        # self.delete_this_test_backup_start()
+        # self.app.init()
         self.start_heartbeat_client()
-        server = PrimaryServer(PrimaryServerRequestHandler,
-                               self.parsed_args.tp_sap[0],
-                               self.parsed_args.tp_sap[1],
-                               self.app, server_type='back-up')
-        # server.serve_forever()
+        server = MainServer(PrimaryServerRequestHandler,
+                            self.parsed_args.tp_sap[0],
+                            self.parsed_args.tp_sap[1],
+                            self.app, server_type='back-up')
+        server.serve_forever()
 
         logger.debug("backup started as backup")
-
-
 
     def start_backup(self) -> None:
         """ Start backup service with specific arguments"""
@@ -93,7 +95,7 @@ class TupleSpaceService:
                    str(os.getpid())
                    )
 
-        logger.info("Starting backup service")
+        logger.info("Starting backup server")
         subprocess.Popen(backup_start_cmd, shell=False)
 
     def start_heartbeat_socket(self,):
@@ -102,18 +104,18 @@ class TupleSpaceService:
                              self.parsed_args.heartbeat_sap[1],
                              2,
                              Q=self.thread_Q)
-        self.start_thread(hb)
+        self.start_thread(hb.serve_forever, hb.server_type)
 
     def start_shutdown_socket(self):
         sh = ShutdownServer(ShutDownRequestHandler,
                             self.parsed_args.shutdown_sap[0],
                             self.parsed_args.shutdown_sap[1],
                             Q=self.thread_Q)
-        self.start_thread(sh)
+        self.start_thread(sh.serve_forever, sh.server_type)
 
-    def start_thread(self, app_to_run):
-        s_thread = threading.Thread(target=app_to_run.serve_forever, name=app_to_run.server_type)
-        # s_thread.setDaemon(True)
+    def start_thread(self, app_to_run, name):
+        s_thread = threading.Thread(target=app_to_run, name=name)
+        s_thread.setDaemon(True)
         s_thread.start()
         self.all_threads.append(s_thread)
 
@@ -124,13 +126,21 @@ class TupleSpaceService:
         pass
 
     def shutdown_service(self):
-        logger.info("shutting down all services")
+        logger.info("shutting down all {} server services".format(self.name))
         self.app.shutdown()
 
     def get_first_heartbeat(self):
         try:
+            logger.info("waiting for first heartbeat")
             data = self.thread_Q.get(timeout=conf.HEARTBEAT_WAIT_TIME)
             return data == 'HB-0'
         except Empty:
             raise RuntimeError("no heartbeat after {} secs".format(conf.HEARTBEAT_WAIT_TIME))
+
+    def start_heartbeat_client(self):
+        hb_client = HearBeatClient(conf.PRIMARY_SERVER_HEARTBEAT_IP, conf.PRIMARY_SERVER_HEARTBEAT_PORT)
+        self.start_thread(hb_client.send_heartbeat, 'hb_client')
+        logger.info('backup heartbeat client running')
+
+
 

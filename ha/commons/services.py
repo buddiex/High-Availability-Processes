@@ -134,7 +134,12 @@ class TupleSpaceService(BaseService):
         self._package('PUT', args)
         return self._send_recv()
 
-    def delete(self, args):
+    # def delete(self, args):
+    #     self._package('DELETE', args)
+    #     return self._send_recv()
+
+    def delete(self, key, value):
+        args = f"('{key}', '{value}')"
         self._package('DELETE', args)
         return self._send_recv()
 

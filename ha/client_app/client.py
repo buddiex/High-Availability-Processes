@@ -41,20 +41,26 @@ def main():
         # --------------------------------------------------
         #  instantiate and run the client
         # --------------------------------------------------
-        tp_serivce = TupleSpaceService(parsed_args.server_IP, parsed_args.server_port)
+        tp_service = TupleSpaceService(parsed_args.server_IP, parsed_args.server_port)
         for i in range(1):
             try:
-                keyExpr = "fal*"
-                valExpr = ""
-                res = tp_serivce.get(keyExpr, valExpr)
+                keyExpr = "^f"
+                valExpr = ".*"
+                res = tp_service.get(keyExpr, valExpr)
                 print(res.data['payload'])
                 print(res.data['status'])
-                # res = tp_serivce.post(f'mm{i}')
-                # print(res.data['payload'])
-                # res = tp_serivce.put(f'mm{i}')
-                # print(res.data['payload'])
-                # res = tp_serivce.delete(f'mm{i}')
-                # print(res.data['payload'])
+
+                res = tp_service.post('[("fal","niyilomo"),("gal","heyes"),("zal","heyes"),("gal","heyes")]')
+                print(res.data['payload'])
+
+                res = tp_service.put('[("fal","niyi"),("gal","heyes"),("zal","heyes"),("gal","heyes")]')
+                print(res.data['payload'])
+
+                keyExpr1 = "^f"
+                valExpr1 = ".*"
+                res = tp_service.delete(keyExpr1,valExpr1)
+                print(res.data['payload'])
+
             except ConnectionAbortedError as err:
                 #@TODO: implement a wait and retry here
                 pass

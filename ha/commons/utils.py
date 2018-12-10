@@ -1,6 +1,7 @@
 import argparse
 import config as conf
 import socket
+import re
 
 
 def port_parser(string, **kwargs):
@@ -40,3 +41,10 @@ def hostname_parser(string):
 
 class ConnectionError(Exception):
     pass
+
+
+def validate_reg_ex(reg_ex):
+    try:
+        re.compile(reg_ex)
+    except re.error:
+        raise re.error

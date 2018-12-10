@@ -125,19 +125,10 @@ class TupleSpaceApp:
             raise
 
     def shutdown(self):
-        if self.tuple_space:
-            with open(self.tuple_space_file, 'w') as fp:
-                json.dump(self.tuple_space, fp)
-
-    def persist_tuple_space(self) -> None:
-        """ Write tuple space to file """
         try:
-            if self.tuple_space_file is not None:
-                with open(self.tuple_space_file, "w") as file:
-                    try:
-                        file.write(json.dumps(self.tuple_space))
-                    except ValueError as err:
-                        raise
-
-        except Exception as err:
+            if self.tuple_space:
+                with open(self.tuple_space_file, 'w') as fp:
+                    json.dump(self.tuple_space, fp)
+        except :
             raise
+

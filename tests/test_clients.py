@@ -2,7 +2,7 @@ import unittest
 import pytest
 from unittest.mock import patch
 from ha.commons.connections import ClientConn
-from ha.commons.services import TupleSpaceService
+from ha.commons.services import TupleSpaceServer
 from tests.mocks import start_mock_server, get_free_port, start_tcp_mock_server, start_tcp_main_server
 from ha.commons.services import get_users, client
 
@@ -29,7 +29,7 @@ def server1():
     HOST = "localhost"
     mock_server_port = get_free_port()
     start_tcp_mock_server(HOST, mock_server_port)
-    req = TupleSpaceService(HOST, mock_server_port)
+    req = TupleSpaceServer(HOST, mock_server_port)
     return req
 
 
@@ -38,7 +38,7 @@ def server():
     HOST = "localhost"
     mock_server_port = get_free_port()
     start_tcp_main_server(HOST, mock_server_port)
-    req = TupleSpaceService(HOST, mock_server_port)
+    req = TupleSpaceServer(HOST, mock_server_port)
     return req
 
 @pytest.mark.parametrize('data', [

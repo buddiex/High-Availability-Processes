@@ -4,7 +4,7 @@ from queue import Queue
 import threading
 import time
 from ha.commons.logger import get_module_logger
-from ha.server.tuplespace_app import TupleSpaceApp
+from ha.server.tuple_space_app.tuplespace_app import TupleSpaceApp
 
 logger = get_module_logger(__name__)
 

@@ -65,7 +65,7 @@ class Respondse:
         return True
 
 
-class BaseService:
+class BaseServer:
 
     def __init__(self, server_IP, server_port):
         self.server = ClientConn((server_IP, server_port))
@@ -116,7 +116,7 @@ class BaseService:
         return True
 
 
-class TupleSpaceService(BaseService):
+class TupleSpaceServer(BaseServer):
 
     def __init__(self, server_IP, server_port):
         super().__init__(server_IP, server_port)
@@ -144,7 +144,7 @@ class TupleSpaceService(BaseService):
         return self._send_recv()
 
 
-class HearBeatService(BaseService):
+class HearBeatServer(BaseServer):
 
     def __init__(self, server_IP, server_port):
         super().__init__(server_IP, server_port)
@@ -154,7 +154,7 @@ class HearBeatService(BaseService):
         return self._send_recv()
 
 
-class ShortDownService(BaseService):
+class ShortDownServer(BaseServer):
 
     def __init__(self, server_IP, server_port):
         super().__init__(server_IP, server_port)

@@ -170,9 +170,10 @@ class BaseServer(object):
 
         # bind this socket to the specified port
         try:
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket.bind(self.server_address)
         except Exception as err:
-            raise OSError("could not bind to {}, port {}: {}".format(*self.server_address, err))
+            raise OSError("could not bind {} to {}:{}: {}".format(self.server_type,*self.server_address, err))
 
         # specify number of simultaneous clients to support
         try:
@@ -247,7 +248,7 @@ class BaseServer(object):
                     pass
                 # end of all exchanges
                 self.socket.close()
-                logger.info('exiting')
+                logger.info('exiting {}'.format(self.server_type))
                 if conf.DEBUG_MODE: raise
 
     def _manage_readable_sockets(self):
@@ -404,7 +405,7 @@ class HeartBeatServer(BaseServer):
 class ShutdownServer(BaseServer):
 
     def __init__(self, request_handler: HearthBeatRequestHandler, hostname, port,timeout:int=None,
-                 server_type='shut_down', Q=None):
+                 server_type='shut-down', Q=None):
         super().__init__(request_handler, hostname, port, timeout=timeout)
         self.client_tags = 'clt'
         self.server_type = server_type

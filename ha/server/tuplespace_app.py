@@ -25,10 +25,7 @@ class TupleSpaceApp:
 
             response = [(k, v) for k, v in self.tuple_space.items()
                         if re.match(key_expr, k) and re.match(val_expr, v)]
-        except re.error:
-            response = []
         except:
-            raise
             return self.error_msg('invlaid')
 
         return self.ok_msg(str(response))
@@ -67,11 +64,11 @@ class TupleSpaceApp:
         not_used = []
         try:
             tuples_list = eval(data)
-            if not isinstance(tuples_list, list):
-                raise ValueError("not list")
         except:
-            return self.error_msg('invlaid')
+            return self.error_msg("Invalid")
 
+        if not isinstance(tuples_list, list):
+            return self.error_msg("not a list")
         for tp in tuples_list:
 
             # check if key,val is well formed and key is in tuple space

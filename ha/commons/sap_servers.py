@@ -170,9 +170,10 @@ class BaseServer(object):
 
         # bind this socket to the specified port
         try:
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket.bind(self.server_address)
         except Exception as err:
-            raise OSError("could not bind to {}, port {}: {}".format(*self.server_address, err))
+            raise OSError("could not bind {} to {}:{}: {}".format(self.server_type,*self.server_address, err))
 
         # specify number of simultaneous clients to support
         try:

@@ -31,6 +31,7 @@ class TupleSpaceService:
     def initialize(self):
         """ Initial Tuple Space service"""
         try:
+            self.thread_Q = Queue()
             if self.isPrimary:
                 self.start_as_primary()
             else:
@@ -38,7 +39,7 @@ class TupleSpaceService:
         except Exception as err:
             logger.info("shutdown: error - {}".format(err))
             self.shutdown_service()
-            # raise
+            raise
         
     def delete_this_test_backup_start(self):
 
@@ -46,26 +47,34 @@ class TupleSpaceService:
             logger.debug(i)
             time.sleep(1)
 
-    def start_as_backup(self):
-        logger.debug("server starting as backup")
-        self.delete_this_test_backup_start()
-        logger.debug("backup started as backup")
-
     def start_as_primary(self):
         logger.info("Starting primary service")
 
         self.app.init()
-        # self.start_backup()
-        self.thread_Q = Queue()
         self.start_shutdown_socket()
+        # self.start_backup()
         self.start_heartbeat_socket()
         # self.get_first_heartbeat()
         server = PrimaryServer(PrimaryServerRequestHandler,
-                                conf.PRIMARY_SERVER_2_PROXY_IP,
-                                conf.PRIMARY_SERVER_2_PROXY_PORT,
+                                self.parsed_args.tp_sap[0],
+                                self.parsed_args.tp_sap[1],
                                 self.app)
         server.serve_forever()
-        self.wait_for_backup()
+
+    def start_as_backup(self):
+        logger.debug("server starting as backup")
+        self.delete_this_test_backup_start()
+        self.app.init()
+        self.start_heartbeat_client()
+        server = PrimaryServer(PrimaryServerRequestHandler,
+                               self.parsed_args.tp_sap[0],
+                               self.parsed_args.tp_sap[1],
+                               self.app, server_type='back-up')
+        # server.serve_forever()
+
+        logger.debug("backup started as backup")
+
+
 
     def start_backup(self) -> None:
         """ Start backup service with specific arguments"""
@@ -74,12 +83,12 @@ class TupleSpaceService:
         backup_start_cmd = """python "{}" server -tpfile "{}" -tpsap "{}" -shutdown "{}" -heartbeat "{}" -backup "{}" -bk_shutdown "{}" -proxy "{}" --is_primary "{}" -primary_id "{}"
         """.format(self.server_script_name,
                    self.parsed_args.tuple_space_file,
-                   (conf.PRIMARY_SERVER_2_PROXY_IP, conf.PRIMARY_SERVER_2_PROXY_PORT),
-                   (conf.BACKUP_SERVER_SHUTDOWN_IP, conf.BACKUP_SERVER_SHUTDOWN_PORT),
+                   (conf.BACKUP_SERVER_2_PROXY_IP, conf.BACKUP_SERVER_2_PROXY_PORT),
+                   (self.parsed_args.backup_sap[0], self.parsed_args.backup_sap[1]),
                    (conf.BACKUP_SERVER_HEARTBEAT_IP, conf.BACKUP_SERVER_HEARTBEAT_PORT),
-                   (conf.PRIMARY_SERVER_UPDATE_IP, conf.PRIMARY_SERVER_UPDATE_PORT),
-                   (conf.PRIMARY_SERVER_SHUTDOWN_IP, conf.PRIMARY_SERVER_SHUTDOWN_PORT),
-                   (conf.PROXY_COMM_IP, conf.PROXY_COMM_PORT),
+                   (self.parsed_args.tp_sap[0], self.parsed_args.tp_sap[1]),
+                   (self.parsed_args.bk_shutdown_sap[0], self.parsed_args.bk_shutdown_sap[1]),
+                   (self.parsed_args.proxy_sap[0], self.parsed_args.proxy_sap[1]),
                    'false',
                    str(os.getpid())
                    )

@@ -40,10 +40,10 @@ if __name__ == "__main__":
 
     server_args = subparsers.add_parser('server', help="for server related commands, <server> - h")
     server_args.add_argument('-tpfile', '--tuple-space-file', dest='tuple_space_file', default=conf.TUPLE_SPACE_JSON)
-    server_args.add_argument('-tpsap', '--tp-sap', dest='primary_sap',default=(conf.PRIMARY_SERVER_2_PROXY_IP, conf.PRIMARY_SERVER_2_PROXY_PORT))
+    server_args.add_argument('-tpsap', '--tp-sap', dest='tp_sap',default=(conf.PRIMARY_SERVER_2_PROXY_IP, conf.PRIMARY_SERVER_2_PROXY_PORT))
     server_args.add_argument('-shutdown', '--shutdown-sap', dest='shutdown_sap', default=(conf.PRIMARY_SERVER_SHUTDOWN_IP, conf.PRIMARY_SERVER_SHUTDOWN_PORT))
     server_args.add_argument('-heartbeat', '--heartbeat-sap', dest='heartbeat_sap', default=(conf.PRIMARY_SERVER_HEARTBEAT_IP, conf.PRIMARY_SERVER_HEARTBEAT_PORT))
-    server_args.add_argument('-backup', '--backup-sap', dest='backup_sap', default=(conf.BACKUP_SERVER_UPDATE_IP, conf.BACKUP_SERVER_UPDATE_PORT))
+    server_args.add_argument('-backup', '--backup-sap', dest='backup_sap', default=(conf.BACKUP_SERVER_2_PROXY_IP, conf.BACKUP_SERVER_2_PROXY_PORT))
     server_args.add_argument('-bk_shutdown', '--bk-shutdown-sap', dest='bk_shutdown_sap',default=(conf.BACKUP_SERVER_SHUTDOWN_IP, conf.BACKUP_SERVER_SHUTDOWN_PORT))
     server_args.add_argument('-proxy', '--proxy-sap', dest='proxy_sap',default=(conf.PROXY_COMM_IP, conf.PROXY_COMM_PORT))
     server_args.add_argument('--is_primary', default=True, dest='is_primary', type=lambda x: (str(x).lower() == 'true'))

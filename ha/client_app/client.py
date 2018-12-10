@@ -41,24 +41,29 @@ def main():
         # --------------------------------------------------
         #  instantiate and run the client
         # --------------------------------------------------
-        tp_serivce = TupleSpaceServer(parsed_args.server_IP, parsed_args.server_port)
-        for i in range(5):
-            try:
-                keyExpr = "fal*"+str(i)
-                valExpr = ""
-                res = tp_serivce.get(keyExpr, valExpr)
-                print(res.data['payload'])
-                print(res.data['status'])
-                # res = tp_serivce.post(f'mm{i}')
-                # print(res.data['payload'])
-                # res = tp_serivce.put(f'mm{i}')
-                # print(res.data['payload'])
-                # res = tp_serivce.delete(f'mm{i}')
-                # print(res.data['payload'])
-            except ConnectionAbortedError as err:
-                #@TODO: implement a wait and retry here
-                pass
-                # raise
+        try:
+            logger.info("connecting to TupleSpace Service")
+            tp_serivce = TupleSpaceServer(parsed_args.server_IP, parsed_args.server_port)
+            for i in range(5):
+                try:
+                    keyExpr = "fal*"+str(i)
+                    valExpr = ""
+                    res = tp_serivce.get(keyExpr, valExpr)
+                    print(res.data['payload'])
+                    print(res.data['status'])
+                    # res = tp_serivce.post(f'mm{i}')
+                    # print(res.data['payload'])
+                    # res = tp_serivce.put(f'mm{i}')
+                    # print(res.data['payload'])
+                    # res = tp_serivce.delete(f'mm{i}')
+                    # print(res.data['payload'])
+                except ConnectionAbortedError as err:
+                    #@TODO: implement a wait and retry here
+                    pass
+                    # raise
+        except Exception as err:
+            logger.info("cannot connect... error:{}".format(err))
+            logger.info("client shutting down")
 
 
     except Exception as err:

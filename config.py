@@ -1,7 +1,9 @@
 import  os
 
 
+RUNNING = ''
 DEBUG_MODE = True
+LOG = "ha"
 MIN_TCP_PORT_NUM, MAX_TCP_PORT_NUM = (1, 65535)  # range of values for valid port numbers
 MESSAGE_COUNT_MIN, MESSAGE_COUNT_MAX = (5, 8)  # number of messages to send, min and max
 MESSAGE_DELAY_MIN, MESSAGE_DELAY_MAX = (2, 4)  # delay between messages to send in seconds, min and max
@@ -31,6 +33,7 @@ BACKUP_SERVER_HEARTBEAT_PORT = 9992  # default to port 10000 on this host
 BACKUP_SERVER_UPDATE_IP = 'localhost'  # default to server on this host
 BACKUP_SERVER_UPDATE_PORT = 9991  # default to port 10000 on this host
 
+HEARTBEAT_WAIT_TIME = 1
 
 TUPLE_SPACE_JSON = "sample_tuple_file.db.json"
 

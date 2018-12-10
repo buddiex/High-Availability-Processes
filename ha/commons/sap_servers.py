@@ -247,7 +247,7 @@ class BaseServer(object):
                     pass
                 # end of all exchanges
                 self.socket.close()
-                logger.info('exiting')
+                logger.info('exiting {}'.format(self.server_type))
                 if conf.DEBUG_MODE: raise
 
     def _manage_readable_sockets(self):
@@ -404,7 +404,7 @@ class HeartBeatServer(BaseServer):
 class ShutdownServer(BaseServer):
 
     def __init__(self, request_handler: HearthBeatRequestHandler, hostname, port,timeout:int=None,
-                 server_type='shut_down', Q=None):
+                 server_type='shut-down', Q=None):
         super().__init__(request_handler, hostname, port, timeout=timeout)
         self.client_tags = 'clt'
         self.server_type = server_type

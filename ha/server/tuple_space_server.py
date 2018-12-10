@@ -2,30 +2,29 @@ import subprocess
 import sys
 import argparse
 import os
+import threading
 import time
+from queue import Queue, Empty
+
 from ha.commons.logger import get_module_logger
 import config as conf
+from ha.commons.sap_servers import HearthBeatRequestHandler, HeartBeatServer, ShutdownServer, ShutDownRequestHandler, \
+    PrimaryServer, PrimaryServerRequestHandler
+from ha.server.tuple_space_app.tuplespace_app import TupleSpaceApp
 
 logger = get_module_logger(__name__)
-
-from ha.server.tuple_space_app.tuplespace_app import TupleSpaceApp
 
 
 class TupleSpaceService:
 
     def __init__(self, parsed_args: argparse.ArgumentParser(), app: TupleSpaceApp):
-        self.tuple_space = None
+        self.all_threads = []
         self.parsed_args = parsed_args
-        self.shutdown_sap = parsed_args.shutdown_sap
-        self.proxy_sap = parsed_args.proxy_sap
-        self.backup_sap = parsed_args.backup_sap
-        self.primary_sap = parsed_args.primary_sap
         self.isPrimary = parsed_args.is_primary
         self.server_script_name = ""
         self.primary_process_id = ""
         self.backup_process_id = ""
         self.app = app
-
         # Get command line arguments to be used by backup_service
         self.raw_command_args = sys.argv[1:]
 
@@ -36,34 +35,37 @@ class TupleSpaceService:
                 self.start_as_primary()
             else:
                 self.start_as_backup()
-        except Exception:
-            raise
+        except Exception as err:
+            logger.info("shutdown: error - {}".format(err))
+            self.shutdown_service()
+            # raise
         
-    def text_backup_start(self):
+    def delete_this_test_backup_start(self):
 
-        with open("backup_start_test.txt", "w") as bk:
-            bk.write(str(os.getpid()) + '\n')
-            for i in range(10):
-                bk.write(str(i)+'\n')
-                time.sleep(1)
+        for i in range(1):
+            logger.debug(i)
+            time.sleep(1)
 
     def start_as_backup(self):
         logger.debug("server starting as backup")
-        self.text_backup_start()
-        logger.debug("backup server started")
+        self.delete_this_test_backup_start()
+        logger.debug("backup started as backup")
 
     def start_as_primary(self):
         logger.info("Starting primary service")
 
-        self.app.load_tuple_space()
-
-        self.start_backup()
-
-        # self.start_heartbeat_socket()
-
-        # server = PrimaryServer(PrimaryServerRequestHandler, host, port, app_to_run)
-        # server.serve_forever()
-        # self.wait_for_backup()
+        self.app.init()
+        # self.start_backup()
+        self.thread_Q = Queue()
+        self.start_shutdown_socket()
+        self.start_heartbeat_socket()
+        # self.get_first_heartbeat()
+        server = PrimaryServer(PrimaryServerRequestHandler,
+                                conf.PRIMARY_SERVER_2_PROXY_IP,
+                                conf.PRIMARY_SERVER_2_PROXY_PORT,
+                                self.app)
+        server.serve_forever()
+        self.wait_for_backup()
 
     def start_backup(self) -> None:
         """ Start backup service with specific arguments"""
@@ -81,25 +83,30 @@ class TupleSpaceService:
                    'false',
                    str(os.getpid())
                    )
-        print(backup_start_cmd)
 
+        logger.info("Starting backup service")
+        subprocess.Popen(backup_start_cmd, shell=False)
 
-        #if the backup can't be started, write the tuple space to file
-        try:
-            logger.info("Starting backup service")
-
-            subprocess.Popen(backup_start_cmd, shell=False)
-        except:
-            raise
-            if self.tuple_space is not None:
-                with open(self.tuple_space_file, "w") as file:
-                    file.write(self.tuple_space)
-
-    def start_heartbeat_socket(self):
-        pass
+    def start_heartbeat_socket(self,):
+        hb = HeartBeatServer(HearthBeatRequestHandler,
+                             self.parsed_args.heartbeat_sap[0],
+                             self.parsed_args.heartbeat_sap[1],
+                             2,
+                             Q=self.thread_Q)
+        self.start_thread(hb)
 
     def start_shutdown_socket(self):
-        pass
+        sh = ShutdownServer(ShutDownRequestHandler,
+                            self.parsed_args.shutdown_sap[0],
+                            self.parsed_args.shutdown_sap[1],
+                            Q=self.thread_Q)
+        self.start_thread(sh)
+
+    def start_thread(self, app_to_run):
+        s_thread = threading.Thread(target=app_to_run.serve_forever, name=app_to_run.server_type)
+        # s_thread.setDaemon(True)
+        s_thread.start()
+        self.all_threads.append(s_thread)
 
     def start_update_socket(self):
         pass
@@ -107,33 +114,14 @@ class TupleSpaceService:
     def start(self):
         pass
 
+    def shutdown_service(self):
+        logger.info("shutting down all services")
+        self.app.shutdown()
 
-if __name__ == "__main__":
-    # get current script name - used to start backup service
-    script_name = sys.argv[0]
+    def get_first_heartbeat(self):
+        try:
+            data = self.thread_Q.get(timeout=conf.HEARTBEAT_WAIT_TIME)
+            return data == 'HB-0'
+        except Empty:
+            raise RuntimeError("no heartbeat after {} secs".format(conf.HEARTBEAT_WAIT_TIME))
 
-    # Parse command line arguments
-
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('-tpfile', '--tuple-space-file', dest='tuple_space_file', default=conf.TUPLE_SPACE_JSON)
-    parser.add_argument('-tpsap', '--tp-sap', dest='primary_sap',
-                        default=(conf.PRIMARY_SERVER_2_PROXY_IP, conf.PRIMARY_SERVER_2_PROXY_PORT))
-    parser.add_argument('-shutdown', '--shutdown-sap', dest='shutdown_sap',
-                        default=(conf.PRIMARY_SERVER_SHUTDOWN_IP, conf.PRIMARY_SERVER_SHUTDOWN_PORT))
-    parser.add_argument('-heartbeat', '--heartbeat-sap', dest='heartbeat_sap',
-                        default=(conf.PRIMARY_SERVER_HEARTBEAT_IP, conf.PRIMARY_SERVER_HEARTBEAT_PORT))
-    parser.add_argument('-backup', '--backup-sap', dest='backup_sap',
-                        default=(conf.BACKUP_SERVER_UPDATE_IP, conf.BACKUP_SERVER_UPDATE_PORT))
-    parser.add_argument('-bk_shutdown', '--bk-shutdown-sap', dest='bk_shutdown_sap',
-                        default=(conf.BACKUP_SERVER_SHUTDOWN_IP, conf.BACKUP_SERVER_SHUTDOWN_PORT))
-    parser.add_argument('-proxy', '--proxy-sap', dest='proxy_sap', default=(conf.PROXY_COMM_IP, conf.PROXY_COMM_PORT))
-    parser.add_argument('--is_primary', default=True, dest='is_primary', type=lambda x: (str(x).lower() == 'true'))
-    parser.add_argument('-primary_id', '--primary-process-id', dest='primary_id', default=None)
-
-    parsed_args = parser.parse_args()
-    tuple_space_service = TupleSpaceService(parsed_args, TupleSpaceApp(parsed_args.tuple_space_file))
-    tuple_space_service.server_script_name = script_name
-    tuple_space_service.initialize()
-
-    # print(tuple_space_service.tuple_space)

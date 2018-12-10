@@ -42,9 +42,9 @@ def main():
         #  instantiate and run the client
         # --------------------------------------------------
         tp_serivce = TupleSpaceServer(parsed_args.server_IP, parsed_args.server_port)
-        for i in range(1):
+        for i in range(5):
             try:
-                keyExpr = "fal*"
+                keyExpr = "fal*"+str(i)
                 valExpr = ""
                 res = tp_serivce.get(keyExpr, valExpr)
                 print(res.data['payload'])

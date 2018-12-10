@@ -4,10 +4,12 @@ import json
 class TupleSpaceApp:
 
     def __init__(self, tuple_space_file):
-
         self.tuple_space_file = tuple_space_file
         self.tuple_space = {}
         pass
+
+    def init(self):
+        self.load_tuple_space()
 
     def get(self, data):
         print(data)
@@ -59,3 +61,8 @@ class TupleSpaceApp:
 
         except Exception as err:
             raise
+
+    def shutdown(self):
+        if self.tuple_space:
+            with open(self.tuple_space_file, 'w') as fp:
+                json.dump(self.tuple_space, fp)

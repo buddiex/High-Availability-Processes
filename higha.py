@@ -1,9 +1,13 @@
 import argparse
 import sys
 import config as conf
+from ha.commons.logger import get_module_logger
+import logging
 
 from ha.server.tuple_space_server import TupleSpaceService
 from ha.server.tuple_space_app.tuplespace_app import TupleSpaceApp
+
+logger = get_module_logger(__name__)
 
 
 def client(args_in):
@@ -47,8 +51,9 @@ if __name__ == "__main__":
     server_args.set_defaults(func=server)
 
     args = parser.parse_args()
+    # logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s {} [%(filename)s:%(lineno)d] %(message)s'
+    #                     .format(args.func.__name__),
+    #                     datefmt='%d-%m-%Y:%H:%M:%S')
+
     args.func(args)
-
-
-
-
+    print('done')

@@ -1,3 +1,4 @@
+import os
 import time
 import json
 import config as conf
@@ -150,11 +151,13 @@ class HearBeatClient(BaseClient):
 
     def __init__(self, server_IP, server_port):
         super().__init__(server_IP, server_port)
-        self.counter = 0
+        self.counter = 1
 
     def send_heartbeat(self):
         while True:
-            self._package('BEAT', 'HB-' + str(self.counter))
+            msg = 'HB-'+str(self.counter)
+            msg += ':'+str(os.getpid()) if self.counter == 1 else ''
+            self._package('BEAT', msg)
             self._send_recv()
             logger.debug("heartbeat sent")
             self.counter += 1

@@ -123,7 +123,7 @@ class TupleSpaceClient(BaseClient):
     def __init__(self, server_IP, server_port):
         super().__init__(server_IP, server_port)
 
-    def get(self, key,value):
+    def get(self, key, value):
         args = f"('{key}', '{value}')"
         self._package('GET', args)
         return self._send_recv()
@@ -154,7 +154,7 @@ class HearBeatClient(BaseClient):
 
     def send_heartbeat(self):
         while True:
-            self._package('BEAT', 'HB-'+str(self.counter))
+            self._package('BEAT', 'HB-' + str(self.counter))
             self._send_recv()
             logger.debug("heartbeat sent")
             self.counter += 1
@@ -168,4 +168,14 @@ class ShortDownClient(BaseClient):
 
     def shortdown(self):
         self._package('SHORTDOWN', '')
+        return self._send_recv()
+
+
+class ProxyClient(BaseClient):
+
+    def __init__(self, server_IP, server_port):
+        super().__init__(server_IP, server_port)
+
+    def send_sap(self, IP, port):
+        self._package('PROXY', IP+":"+str(port))
         return self._send_recv()

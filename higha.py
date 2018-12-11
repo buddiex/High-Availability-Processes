@@ -41,6 +41,8 @@ if __name__ == "__main__":
     client_args.set_defaults(func=client)
 
     proxy_bar = subparsers.add_parser('proxy', help="proxy related commands, <proxy> - h")
+    proxy_bar.add_argument('-tpsap', '--tp-sap', dest='tp_sap', type=to_tuple,
+                             default=(conf.PRIMARY_SERVER_2_PROXY_IP, conf.PRIMARY_SERVER_2_PROXY_PORT))
     proxy_bar.add_argument('z')
     proxy_bar.set_defaults(func=proxy)
 

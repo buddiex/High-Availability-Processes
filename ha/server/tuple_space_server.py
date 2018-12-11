@@ -6,11 +6,12 @@ from queue import Empty
 from random import randint
 
 
-from ha.commons.clients import HearBeatClient
+from ha.commons.clients import HearBeatClient, ProxyClient
 from ha.commons.logger import get_module_logger
 import config as conf
 from ha.commons.sap_servers import HearthBeatRequestHandler, HeartBeatServer, MainServer, PrimaryServerRequestHandler, \
-    BaseMulitThreadAdmin
+    BaseMulitThreadAdmin, ProxyServer, ProxyRequestHandler
+from ha.proxy.proxy_server import ProxyThreadAdmin
 from ha.server.tuple_space_app.tuplespace_app import TupleSpaceApp
 
 logger = get_module_logger(__name__)
@@ -165,7 +166,19 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
 
     def register_on_proxy(self):
         #@TODO: NIYI
-        pass
+
+        if self.isPrimary and not self.registered_on_proxy:
+            try:
+                proxy_client = ProxyClient(conf.PROXY_COMM_IP, conf.PROXY_COMM_PORT)
+                proxy_client.send_sap(self.parsed_args.tp_sap[0],self.parsed_args.tp_sap[1])
+            except OSError:
+                pass
+        self.registered_on_proxy = True
+        """
+        if not self.registered_on_proxy:
+            
+            self.registered_on_proxy = True
+        """
 
     def update_backup(self):
         #@TODO: NIYI

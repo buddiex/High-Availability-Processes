@@ -77,12 +77,12 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
     def monitor_threads(self):
         #to simulate backup shutdown
         cnt = 0
-        rand_period = randint(0, 50)
+        rand_period = randint(0, 100)
         logger.info("monitoring {} server threads ".format(self.name))
         while True:
             time.sleep(1)
             try:
-                data = self.thread_Q.get(False)
+                data = self.thread_Q.get()
                 self.thread_Q_handlers[data['command']](data['payload'])
             except Empty:
                 pass
@@ -148,7 +148,10 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
         try:
             logger.info("waiting for first heartbeat")
             data = self.thread_Q.get(timeout=conf.HEARTBEAT_WAIT_TIME)
-            return data == 'HB-0'
+            data = data['payload']
+            if data.startswith('HB-1'):
+                self.backup_process_id = data.split(':')[1]
+                return True
         except Empty:
             raise RuntimeError("no heartbeat after {} secs".format(conf.HEARTBEAT_WAIT_TIME))
 

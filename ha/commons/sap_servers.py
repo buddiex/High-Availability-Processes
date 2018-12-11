@@ -112,7 +112,9 @@ class PrimaryServerRequestHandler(BaseRequestHandler):
 
     def _pack_response_and_send(self, res):
         res = RespondsePackage(status=res.split(":")[0], body=res.split(":")[1])
-        res['client'] = self.data['client']
+        res.pack()
+        if 'client' in self.data:
+            res['client'] = self.data.get('client')
         self.data = res.serialize()
         self.send()
 
@@ -127,6 +129,7 @@ class HearthBeatRequestHandler(BaseRequestHandler):
         logger.debug("heartbeat recieved: {}".format(self.data))
         self.pass_to_handler.put(self.data)
         res = RespondsePackage("ACK", "ACK")
+        res.pack()
         self.data=res.serialize()
         self.send()
 
@@ -140,6 +143,7 @@ class ShutDownRequestHandler(BaseRequestHandler):
         logger.info("Shutdown recieved: {}".format(self.data))
         self.pass_to_handler.put(self.data)
         res = RespondsePackage("ACK", "Shutting down {}".format(self.client_conn.address))
+        res.pack()
         self.data = res.serialize()
         self.send()
 
@@ -208,10 +212,11 @@ class BaseServer(object):
         try:
 
             conn, address = self.socket.accept()
-            logger.info('client {}:{} added'.format(*conn.getpeername()))
+
+            logger.info('client {}:{} added to {}'.format(*conn.getpeername(), self.server_type))
 
         except Exception as err:
-            raise ConnectionAbortedError(f"{self.server_type} cannot connect accept client: {err}")
+            raise
         self.socket.setblocking(False)
         new_conn = ServerSideClientConn(conn, address, con_name)
         if len(self.connections) < self.max_client_count:
@@ -228,10 +233,12 @@ class BaseServer(object):
         #    -.  pushing sent content to other clients, prepended with connection information
         # ------------------------------------------------------------------------------------
         while not self.shutdown:
+
             # need try/except block because aborting connections generates exceptions that bypass select
             try:
                 if not self.connections:
                     self.accept_new_connection()
+
                 try:
                     self.get_all_socket_activities()
                 except Exception as err:
@@ -262,7 +269,7 @@ class BaseServer(object):
                     pass
                 # end of all exchanges
                 self.socket.close()
-                logger.info('exiting {}'.format(self.server_type))
+                logger.info('exiting {} - error:{}'.format(self.server_type, err))
                 if conf.DEBUG_MODE: raise
 
     def _manage_readable_sockets(self):
@@ -329,6 +336,7 @@ class BaseServer(object):
                  and propagate exception to caller for further corrective action
         """
         handler = self.request_handler(client, self.pass_to_handler)
+
 
         handler.handle()
         self.finish_request()
@@ -477,10 +485,11 @@ class BaseMulitThreadAdmin(object):
                                 self.parsed_args.shutdown_sap[0],
                                 self.parsed_args.shutdown_sap[1],
                                 Q=self.thread_Q)
-            self.start_thread(sh.serve_forever, sh.server_type)
+            self.start_thread(sh.serve_forever, self.name +'-'+sh.server_type+"-listener")
             self.shutdow_socket_started = True
 
     def start_thread(self, app_to_run, name):
+        logger.info("starting {} thread".format(name))
         s_thread = threading.Thread(target=app_to_run, name=name)
         s_thread.setDaemon(True)
         s_thread.start()

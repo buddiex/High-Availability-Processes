@@ -6,7 +6,7 @@ from queue import Empty
 from random import randint
 
 
-from ha.commons.clients import HearBeatClient
+from ha.commons.clients import HearBeatClient, TupleSpaceClient
 from ha.commons.logger import get_module_logger
 import config as conf
 from ha.commons.sap_servers import HearthBeatRequestHandler, HeartBeatServer, MainServer, PrimaryServerRequestHandler, \
@@ -41,14 +41,15 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
 
             self.monitor_threads()
         except InterruptedError as err:
-            logger.error("{} Shutting down {}".format(self.name, err))
+            logger.error("{} Shutting down - error: {}".format(self.name, err))
         except Exception as err:
             logger.error("{} Shutting down {}".format(self.name, err))
+            raise
         finally:
             self.shutdown_service()
 
     def init_as_primary(self):
-        logger.info("Starting primary service")
+        logger.info("initializing as primary server")
         self.app.init()
         self.start_shutdown_socket()
         self.start_backup()
@@ -59,25 +60,24 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
         self.register_on_proxy()
 
     def init_as_backup(self):
-        logger.debug("server starting as backup")
+        logger.debug("initializing as backup server")
         self.start_shutdown_socket()
         self.start_main_tps_server()
         self.start_heartbeat_client()
 
     def start_main_tps_server(self):
-        logger.info('starting {} server'.format(self.name))
         tps = MainServer(PrimaryServerRequestHandler,
                          self.parsed_args.tp_sap[0],
                          self.parsed_args.tp_sap[1],
                          app_to_run=self.app,
                          server_type=self.name
                          )
-        self.start_thread(tps.serve_forever, tps.server_type)
+        self.start_thread(tps.serve_forever, tps.server_type+'-tps-server')
 
     def monitor_threads(self):
         #to simulate backup shutdown
         cnt = 0
-        rand_period = randint(0, 100)
+        rand_period = randint(10, 20)
         logger.info("monitoring {} server threads ".format(self.name))
         while True:
             time.sleep(1)
@@ -121,7 +121,7 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
                                  self.parsed_args.heartbeat_sap[0],
                                  self.parsed_args.heartbeat_sap[1],
                                  Q=self.thread_Q)
-            self.start_thread(hb.serve_forever, hb.server_type)
+            self.start_thread(hb.serve_forever, self.name +'-'+hb.server_type+"-listener")
             self.heart_beat_server_started = True
 
     def handle_heartbeat_sap(self, msg):
@@ -159,7 +159,7 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
         if not self.heart_beat_client_stared:
             try:
                 hb_client = HearBeatClient(conf.PRIMARY_SERVER_HEARTBEAT_IP, conf.PRIMARY_SERVER_HEARTBEAT_PORT)
-                self.start_thread(hb_client.send_heartbeat, 'hb_client')
+                self.start_thread(hb_client.send_heartbeat, self.name+'-heartbeat-client')
             except OSError:
                 self.isPrimary = True
                 self.init_as_primary()
@@ -171,6 +171,14 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
         pass
 
     def update_backup(self):
-        #@TODO: NIYI
-        pass
+        tp_service = TupleSpaceClient(self.parsed_args.backup_sap[0], self.parsed_args.backup_sap[1])
+        # keyExpr = "^f"
+        # valExpr = ".*"
+        tps = self.app.search_tuple(".*",".*")
+        # res = tp_service.put(str(tps))
+        # if res.data['status']=='ok':
+        #     logger.info('backup updated')
+
+
+
 

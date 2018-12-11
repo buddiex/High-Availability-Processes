@@ -61,8 +61,7 @@ class BaseConn(object):
                     # self.socket_.close()
                     raise
 
-                if chunk == b'':
-                    raise ConnectionAbortedError("socket connection broken")
+                if chunk == b'': raise ConnectionAbortedError("socket connection broken")
                 self.residue_from_previous_messages = self.residue_from_previous_messages + chunk
             result, self.residue_from_previous_messages = self.residue_from_previous_messages[:k], \
                                                           self.residue_from_previous_messages[k:]
@@ -131,6 +130,6 @@ class ClientConn(BaseConn):
         # self.socket.setblocking(False)
         try:
             self.socket.connect(self.addr)
-            logger.info('connected to {}:{}'.format(*self.addr))
+            logger.info('connected to server: {}:{}'.format(*self.addr))
         except Exception as err:
             raise OSError("couldn't connect to {}:{}- Error: {}".format(self.addr[0], self.addr[1], err))

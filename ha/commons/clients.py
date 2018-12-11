@@ -96,7 +96,8 @@ class BaseClient:
     def _send_recv(self):
         try:
             self._send_message()
-            return Respondse(self._recieve_message())
+            msg = self._recieve_message()
+            return Respondse(msg)
         except Exception as err:
             msg = 'server terminated connection: {}'.format(err)
             logger.error(msg)
@@ -170,5 +171,5 @@ class ShortDownClient(BaseClient):
         super().__init__(server_IP, server_port)
 
     def shortdown(self):
-        self._package('SHORTDOWN', '')
+        self._package('SHUTDOWN', '')
         return self._send_recv()

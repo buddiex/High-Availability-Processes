@@ -4,7 +4,7 @@ import config as conf
 
 def get_module_logger(mod_name ):
     logger = logging.getLogger(mod_name)
-    formatter = logging.Formatter('%(asctime)s,%(msecs)d %(levelname)-10s {} [%(filename)s:%(lineno)d] %(message)s'.format(''),
+    formatter = logging.Formatter('%(asctime)s,%(msecs)d %(threadName)s thread   %(levelname)-10s {} [%(filename)s:%(lineno)d] %(message)s'.format(''),
                                   datefmt='%d-%m-%Y:%H:%M:%S')
 
     fileHandler = logging.FileHandler("{0}.log".format(conf.LOG))

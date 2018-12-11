@@ -1,129 +1,144 @@
 import subprocess
-import sys
 import argparse
 import os
-import threading
 import time
-from queue import Queue, Empty
+from queue import Empty
+from random import randint
+
 
 from ha.commons.clients import HearBeatClient
 from ha.commons.logger import get_module_logger
 import config as conf
-from ha.commons.sap_servers import HearthBeatRequestHandler, HeartBeatServer, ShutdownServer, ShutDownRequestHandler, \
-    MainServer, PrimaryServerRequestHandler
+from ha.commons.sap_servers import HearthBeatRequestHandler, HeartBeatServer, MainServer, PrimaryServerRequestHandler, \
+    BaseMulitThreadAdmin
 from ha.server.tuple_space_app.tuplespace_app import TupleSpaceApp
 
 logger = get_module_logger(__name__)
 
 
-class TupleSpaceService:
+class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
 
     def __init__(self, parsed_args: argparse.ArgumentParser(), app: TupleSpaceApp):
-        self.all_threads = []
-        self.parsed_args = parsed_args
+        super().__init__(parsed_args)
+        self.backup_started = False
+        self.heart_beat_server_started = False
+        self.heart_beat_client_stared = False
+        self.registered_on_proxy = False
         self.isPrimary = parsed_args.is_primary
         self.name = 'primary' if parsed_args.is_primary else 'backup'
-        self.server_script_name = ""
         self.primary_process_id = ""
         self.backup_process_id = ""
         self.app = app
-        # Get command line arguments to be used by backup_service
-        self.raw_command_args = sys.argv[1:]
-
+        self.thread_Q_handlers.update({'BEAT':self.handle_heartbeat_sap})
 
     def initialize(self):
         """ Initial Tuple Space service"""
         try:
-            self.thread_Q = Queue()
             if self.isPrimary:
-                self.start_as_primary()
+                self.init_as_primary()
             else:
-                self.start_as_backup()
+                self.init_as_backup()
+
+            self.monitor_threads()
+        except InterruptedError as err:
+            logger.error("{} Shutting down {}".format(self.name, err))
         except Exception as err:
-            logger.info("shutdown: error - {}".format(err))
+            logger.error("{} Shutting down {}".format(self.name, err))
+        finally:
             self.shutdown_service()
-            raise
-        
-    def delete_this_test_backup_start(self):
 
-        for i in range(1):
-            logger.debug(i)
-            time.sleep(1)
-
-    def start_as_primary(self):
+    def init_as_primary(self):
         logger.info("Starting primary service")
-
         self.app.init()
         self.start_shutdown_socket()
         self.start_backup()
         self.start_heartbeat_socket()
         self.get_first_heartbeat()
-        logger.info('starting primary server')
-        server = MainServer(PrimaryServerRequestHandler,
-                            self.parsed_args.tp_sap[0],
-                            self.parsed_args.tp_sap[1],
-                            self.app)
-        server.serve_forever()
+        self.update_backup()
+        self.start_main_tps_server()
+        self.register_on_proxy()
 
-    def start_as_backup(self):
+    def init_as_backup(self):
         logger.debug("server starting as backup")
-        # self.delete_this_test_backup_start()
-        # self.app.init()
+        self.start_shutdown_socket()
+        self.start_main_tps_server()
         self.start_heartbeat_client()
-        server = MainServer(PrimaryServerRequestHandler,
-                            self.parsed_args.tp_sap[0],
-                            self.parsed_args.tp_sap[1],
-                            self.app, server_type='back-up')
-        server.serve_forever()
 
-        logger.debug("backup started as backup")
+    def start_main_tps_server(self):
+        logger.info('starting {} server'.format(self.name))
+        tps = MainServer(PrimaryServerRequestHandler,
+                         self.parsed_args.tp_sap[0],
+                         self.parsed_args.tp_sap[1],
+                         app_to_run=self.app,
+                         server_type=self.name
+                         )
+        self.start_thread(tps.serve_forever, tps.server_type)
+
+    def monitor_threads(self):
+        #to simulate backup shutdown
+        cnt = 0
+        rand_period = randint(0, 50)
+        logger.info("monitoring {} server threads ".format(self.name))
+        while True:
+            time.sleep(1)
+            try:
+                data = self.thread_Q.get(False)
+                self.thread_Q_handlers[data['command']](data['payload'])
+            except Empty:
+                pass
+            # #for backup test
+            if self.isPrimary and cnt == rand_period:
+                self.send_shutdwon(conf.PRIMARY_SERVER_SHUTDOWN_IP, conf.BACKUP_SERVER_SHUTDOWN_PORT)
+                cnt = 0
+            cnt+=1
+
 
     def start_backup(self) -> None:
-        """ Start backup service with specific arguments"""
-        # use os.getpid() get process id that can be used to kill the primary process
-        # add additional parameters for the backup service
-        backup_start_cmd = """python "{}" server -tpfile "{}" -tpsap "{}" -shutdown "{}" -heartbeat "{}" -backup "{}" -bk_shutdown "{}" -proxy "{}" --is_primary "{}" -primary_id "{}"
-        """.format(self.server_script_name,
-                   self.parsed_args.tuple_space_file,
-                   (conf.BACKUP_SERVER_2_PROXY_IP, conf.BACKUP_SERVER_2_PROXY_PORT),
-                   (self.parsed_args.backup_sap[0], self.parsed_args.backup_sap[1]),
-                   (conf.BACKUP_SERVER_HEARTBEAT_IP, conf.BACKUP_SERVER_HEARTBEAT_PORT),
-                   (self.parsed_args.tp_sap[0], self.parsed_args.tp_sap[1]),
-                   (self.parsed_args.bk_shutdown_sap[0], self.parsed_args.bk_shutdown_sap[1]),
-                   (self.parsed_args.proxy_sap[0], self.parsed_args.proxy_sap[1]),
-                   'false',
-                   str(os.getpid())
-                   )
+        if not self.backup_started:
+            """ Start backup service with specific arguments"""
+            # use os.getpid() get process id that can be used to kill the primary process
+            # add additional parameters for the backup service
+            backup_start_cmd = """python "{}" server -tpfile "{}" -tpsap "{}" -shutdown "{}" -heartbeat "{}" -backup "{}" -bk_shutdown "{}" -proxy "{}" --is_primary "{}" -primary_id "{}"
+            """.format(self.server_script_name,
+                       self.parsed_args.tuple_space_file,
+                       (conf.BACKUP_SERVER_2_PROXY_IP, conf.BACKUP_SERVER_2_PROXY_PORT),
+                       (self.parsed_args.bk_shutdown_sap[0], self.parsed_args.bk_shutdown_sap[1]),
+                       (conf.BACKUP_SERVER_HEARTBEAT_IP, conf.BACKUP_SERVER_HEARTBEAT_PORT),
+                       (self.parsed_args.tp_sap[0], self.parsed_args.tp_sap[1]),
+                       (self.parsed_args.backup_sap[0], self.parsed_args.backup_sap[1]),
+                       (self.parsed_args.proxy_sap[0], self.parsed_args.proxy_sap[1]),
+                       'false',
+                       str(os.getpid())
+                       )
 
-        logger.info("Starting backup server")
-        subprocess.Popen(backup_start_cmd, shell=False)
+            logger.info("Starting backup server")
+            subprocess.Popen(backup_start_cmd, shell=False)
+            self.backup_started = True
 
-    def start_heartbeat_socket(self,):
-        hb = HeartBeatServer(HearthBeatRequestHandler,
-                             self.parsed_args.heartbeat_sap[0],
-                             self.parsed_args.heartbeat_sap[1],
-                             2,
-                             Q=self.thread_Q)
-        self.start_thread(hb.serve_forever, hb.server_type)
+    def start_heartbeat_socket(self, ):
+        if not self.heart_beat_server_started:
+            hb = HeartBeatServer(HearthBeatRequestHandler,
+                                 self.parsed_args.heartbeat_sap[0],
+                                 self.parsed_args.heartbeat_sap[1],
+                                 Q=self.thread_Q)
+            self.start_thread(hb.serve_forever, hb.server_type)
+            self.heart_beat_server_started = True
 
-    def start_shutdown_socket(self):
-        sh = ShutdownServer(ShutDownRequestHandler,
-                            self.parsed_args.shutdown_sap[0],
-                            self.parsed_args.shutdown_sap[1],
-                            Q=self.thread_Q)
-        self.start_thread(sh.serve_forever, sh.server_type)
+    def handle_heartbeat_sap(self, msg):
+        # print(msg)
+        if self.isPrimary:
+            if msg == 'NO_HEART_BEAT':
+                logger.error('NO_HEART_BEAT from backup... restarting backup')
+                self.backup_started = False
+                self.restart_backup()
 
-    def start_thread(self, app_to_run, name):
-        s_thread = threading.Thread(target=app_to_run, name=name)
-        s_thread.setDaemon(True)
-        s_thread.start()
-        self.all_threads.append(s_thread)
+    def restart_backup(self):
+        self.start_backup()
+        self.get_first_heartbeat()
+        self.update_backup()
 
-    def start_update_socket(self):
-        pass
-
-    def start(self):
-        pass
+    def handle_shutdown_sap(self, msg):
+        raise InterruptedError("shutdown requested")
 
     def shutdown_service(self):
         logger.info("shutting down all {} server services".format(self.name))
@@ -138,9 +153,21 @@ class TupleSpaceService:
             raise RuntimeError("no heartbeat after {} secs".format(conf.HEARTBEAT_WAIT_TIME))
 
     def start_heartbeat_client(self):
-        hb_client = HearBeatClient(conf.PRIMARY_SERVER_HEARTBEAT_IP, conf.PRIMARY_SERVER_HEARTBEAT_PORT)
-        self.start_thread(hb_client.send_heartbeat, 'hb_client')
-        logger.info('backup heartbeat client running')
+        if not self.heart_beat_client_stared:
+            try:
+                hb_client = HearBeatClient(conf.PRIMARY_SERVER_HEARTBEAT_IP, conf.PRIMARY_SERVER_HEARTBEAT_PORT)
+                self.start_thread(hb_client.send_heartbeat, 'hb_client')
+            except OSError:
+                self.isPrimary = True
+                self.init_as_primary()
+            logger.info('backup heartbeat client running')
+            self.heart_beat_client_stared = True
 
+    def register_on_proxy(self):
+        #@TODO: NIYI
+        pass
 
+    def update_backup(self):
+        #@TODO: NIYI
+        pass
 

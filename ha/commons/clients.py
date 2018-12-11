@@ -23,15 +23,17 @@ class BasePackage(dict):
         self.package_type = package_type
 
     def serialize(self) -> dict:
+        return json.dumps(self.pack()).encode()
+
+    def pack(self):
         if self._validate_request():
             self.update({"type": self.package_type,
-                              "status" if self.package_type == 'response' else "command": self.cmd,
-                              "send_time": time.time(),
-                              "payload": self.args})
+                         "status" if self.package_type == 'response' else "command": self.cmd,
+                         "send_time": time.time(),
+                         "payload": self.args})
         else:
             raise RuntimeError(f"wrong command format for {self.cmd}: {self.args}")
-
-        return json.dumps(self).encode()
+        return self
 
     def _validate_request(self):
         return True
@@ -96,7 +98,7 @@ class BaseClient:
             return Respondse(self._recieve_message())
         except Exception as err:
             msg = 'server terminated connection: {}'.format(err)
-            logger.info(msg)
+            logger.error(msg)
             raise ConnectionAbortedError(msg)
 
         # finally:
@@ -156,8 +158,6 @@ class HearBeatClient(BaseClient):
             self._send_recv()
             logger.debug("heartbeat sent")
             self.counter += 1
-            if self.counter == 5:
-                raise RuntimeError('shutdown')
             time.sleep(conf.BEAT_PERIOD)
 
 

@@ -1,13 +1,15 @@
+import argparse
 import json
 import select
+import threading
 import time
 import socket
-from queue import Empty
+from queue import Empty, Queue
 from typing import Dict
 import config as conf
 from ha.commons.logger import get_module_logger
 from ha.commons.connections import ServerSideClientConn, ClientConn
-from ha.commons.clients import RespondsePackage
+from ha.commons.clients import RespondsePackage, RequestPackage, ShortDownClient
 
 logger = get_module_logger(__name__)
 
@@ -137,6 +139,9 @@ class ShutDownRequestHandler(BaseRequestHandler):
         self.data = self.recv()
         logger.info("Shutdown recieved: {}".format(self.data))
         self.pass_to_handler.put(self.data)
+        res = RespondsePackage("ACK", "Shutting down {}".format(self.client_conn.address))
+        self.data = res.serialize()
+        self.send()
 
 
 class BaseServer(object):
@@ -350,7 +355,7 @@ class BaseServer(object):
     def manage_problem_client(self, client: ServerSideClientConn) -> None:
         """  issue error message, then shut down the problem connection, removing it from the active connection list """
         (problem_client_host, problem_client_port) = client.socket.getpeername()
-        logger.info('exception for %s, port %s: closing connection' % (problem_client_host, problem_client_port))
+        logger.error('exception for %s, port %s: closing connection' % (problem_client_host, problem_client_port))
         client.close()
         del self.connections[client.address]
 
@@ -416,7 +421,7 @@ class ProxyServer(BaseServer):
 
 class HeartBeatServer(BaseServer):
 
-    def __init__(self, request_handler: HearthBeatRequestHandler, hostname, port,timeout:int=None,
+    def __init__(self, request_handler: HearthBeatRequestHandler, hostname, port,timeout:int=2,
                  server_type='heartbeat', Q=None):
         super().__init__(request_handler, hostname, port, timeout=timeout)
         self.client_tags = 'clt'
@@ -425,7 +430,9 @@ class HeartBeatServer(BaseServer):
 
     def _handle_aborted_connection(self):
         logger.info("hearbeat lost")
-        self.pass_to_handler.put("NO_HEART_BEAT")
+        rq = RequestPackage('BEAT', 'NO_HEART_BEAT')
+        self.pass_to_handler.put(rq.pack())
+
 
 
 class ShutdownServer(BaseServer):
@@ -439,3 +446,42 @@ class ShutdownServer(BaseServer):
 
     # def finish_request(self):
     #     self.Q.put("SHUTDOWN_REQUESTED")
+
+
+class BaseMulitThreadAdmin(object):
+    def __init__(self, parsed_args: argparse.ArgumentParser()):
+        self.shutdow_socket_started = False
+        self.all_threads = []
+        self.thread_Q = Queue()
+        self.parsed_args = parsed_args
+        self.name = ''
+        self.server_script_name = ""
+        self.thread_Q_handlers = {'SHUTDOWN': self.handle_shutdown_sap}
+
+    def handle_shutdown_sap(self, msg):
+        raise NotImplementedError
+
+    def monitor_threads(self):
+        pass
+
+    def send_shutdwon(self, host, port):
+        shd = ShortDownClient(host, port)
+        reply = shd.shortdown()
+
+    def shutdown_service(self):
+        raise NotImplementedError
+
+    def start_shutdown_socket(self):
+        if not self.shutdow_socket_started:
+            sh = ShutdownServer(ShutDownRequestHandler,
+                                self.parsed_args.shutdown_sap[0],
+                                self.parsed_args.shutdown_sap[1],
+                                Q=self.thread_Q)
+            self.start_thread(sh.serve_forever, sh.server_type)
+            self.shutdow_socket_started = True
+
+    def start_thread(self, app_to_run, name):
+        s_thread = threading.Thread(target=app_to_run, name=name)
+        s_thread.setDaemon(True)
+        s_thread.start()
+        self.all_threads.append(s_thread)

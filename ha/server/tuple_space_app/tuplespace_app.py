@@ -41,7 +41,6 @@ class TupleSpaceApp:
         :param data: list of tuples
         :return: List containing (key, value) pairs that could not be added to the tuple space
         """
-        print(self.tuple_space)
 
         not_added = []
         try:
@@ -60,7 +59,6 @@ class TupleSpaceApp:
                 self.tuple_space.update({tp[0]: tp[1]})
             else:
                 not_added.append(tp)
-        print(self.tuple_space)
 
 
         return self.ok_msg(f'{not_added} not added to the tuple space')

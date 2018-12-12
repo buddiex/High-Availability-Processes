@@ -77,7 +77,7 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
     def monitor_threads(self):
         #to simulate backup shutdown
         cnt = 0
-        rand_period = randint(10, 20)
+        rand_period = randint(5, 5)
         logger.info("monitoring {} server threads ".format(self.name))
         while True:
             time.sleep(1)
@@ -125,7 +125,6 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
             self.heart_beat_server_started = True
 
     def handle_heartbeat_sap(self, msg):
-        # print(msg)
         if self.isPrimary:
             if msg == 'NO_HEART_BEAT':
                 logger.error('NO_HEART_BEAT from backup... restarting backup')
@@ -175,9 +174,9 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
         # keyExpr = "^f"
         # valExpr = ".*"
         tps = self.app.search_tuple(".*",".*")
-        # res = tp_service.put(str(tps))
-        # if res.data['status']=='ok':
-        #     logger.info('backup updated')
+        res = tp_service.put(str(tps))
+        if res.data['status']=='ok':
+            logger.info('backup updated')
 
 
 

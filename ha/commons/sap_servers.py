@@ -140,12 +140,13 @@ class ShutDownRequestHandler(BaseRequestHandler):
 
     def handle(self):
         self.data = self.recv()
-        logger.info("Shutdown recieved: {}".format(self.data))
-        self.pass_to_handler.put(self.data)
+        logger.info("shutdown recieved: {}".format(self.data))
         res = RespondsePackage("ACK", "Shutting down {}".format(self.client_conn.address))
         res.pack()
         self.data = res.serialize()
+        self.pass_to_handler.put(self.data)
         self.send()
+
 
 
 class BaseServer(object):
@@ -210,9 +211,7 @@ class BaseServer(object):
             self.socket.setblocking(True)
             logger.info('{} service listening on {}:{}'.format(self.server_type, *self.server_address))
         try:
-
             conn, address = self.socket.accept()
-
             logger.info('client {}:{} added to {}'.format(*conn.getpeername(), self.server_type))
 
         except Exception as err:
@@ -406,8 +405,6 @@ class PrimaryServer(MainServer):
         # except Empty:
         #     pass
 
-
-
 class ProxyServer(BaseServer):
 
     def __init__(self, request_handler: ProxyRequestHandler, server_conn: ClientConn, hostname, port,
@@ -474,7 +471,11 @@ class BaseMulitThreadAdmin(object):
 
     def send_shutdwon(self, host, port):
         shd = ShortDownClient(host, port)
-        reply = shd.shortdown()
+        try:
+            reply = shd.shortdown()
+        except ConnectionAbortedError as err:
+            reply = "client is down"
+        logger.info(reply)
 
     def shutdown_service(self):
         raise NotImplementedError

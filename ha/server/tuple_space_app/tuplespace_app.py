@@ -84,7 +84,6 @@ class TupleSpaceApp:
                 self.tuple_space.update({tp[0]: tp[1]})
             else:
                 not_used.append(tp)
-
         return self.ok_msg(f'{not_used} not used to update the tuple space')
 
     def delete(self, data):

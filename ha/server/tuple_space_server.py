@@ -20,6 +20,7 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
 
     def __init__(self, parsed_args: argparse.ArgumentParser(), app: TupleSpaceApp):
         super().__init__(parsed_args)
+        self.initial_backup_update = True
         self.backup_started = False
         self.heart_beat_server_started = False
         self.heart_beat_client_stared = False
@@ -52,17 +53,7 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
             self.shutdown_service()
 
     def init_as_primary(self):
-        xxx = [(self.parsed_args.backup_sap[0], self.parsed_args.backup_sap[1]),
-               (self.parsed_args.bk_shutdown_sap[0], self.parsed_args.bk_shutdown_sap[1]),
-               (self.parsed_args.bk_heartbeat_sap[0], self.parsed_args.bk_heartbeat_sap[1]),
 
-               (self.parsed_args.tp_sap[0], self.parsed_args.tp_sap[1]),
-               (self.parsed_args.shutdown_sap[0], self.parsed_args.backup_sap[1]),
-               (self.parsed_args.heartbeat_sap[0], self.parsed_args.heartbeat_sap[1]),
-
-               (self.parsed_args.proxy_sap[0], self.parsed_args.proxy_sap[1])]
-
-        logger.debug('primary args {}'.format(xxx))
         logger.info("initializing as primary server")
         self.primary_process_id = os.getpid()
         self.app.init()
@@ -75,17 +66,6 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
         self.register_on_proxy()
 
     def init_as_backup(self):
-        xxx = [(self.parsed_args.backup_sap[0], self.parsed_args.backup_sap[1]),
-               (self.parsed_args.bk_shutdown_sap[0], self.parsed_args.bk_shutdown_sap[1]),
-               (self.parsed_args.bk_heartbeat_sap[0], self.parsed_args.bk_heartbeat_sap[1]),
-
-               (self.parsed_args.tp_sap[0], self.parsed_args.tp_sap[1]),
-               (self.parsed_args.shutdown_sap[0], self.parsed_args.backup_sap[1]),
-               (self.parsed_args.heartbeat_sap[0], self.parsed_args.heartbeat_sap[1]),
-
-               (self.parsed_args.proxy_sap[0], self.parsed_args.proxy_sap[1])]
-
-        logger.debug('backup args {}'.format(xxx))
         logger.debug("initializing as backup server")
         self.start_shutdown_socket()
         self.start_main_tps_server()
@@ -98,17 +78,7 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
 
     def handle_primary_shutdown_sap(self, msg):
         logger.debug('handling backup as primary restart')
-        xxx = [(self.parsed_args.backup_sap[0], self.parsed_args.backup_sap[1]),
-               (self.parsed_args.bk_shutdown_sap[0], self.parsed_args.bk_shutdown_sap[1]),
-               (self.parsed_args.bk_heartbeat_sap[0], self.parsed_args.bk_heartbeat_sap[1]),
 
-               (self.parsed_args.tp_sap[0], self.parsed_args.tp_sap[1]),
-               (self.parsed_args.shutdown_sap[0], self.parsed_args.backup_sap[1]),
-               (self.parsed_args.heartbeat_sap[0], self.parsed_args.heartbeat_sap[1]),
-
-               (self.parsed_args.proxy_sap[0], self.parsed_args.proxy_sap[1])]
-
-        logger.debug('primary becomes backup args {}'.format(xxx))
         self.isPrimary = True
         self.name = 'primary'
         self.primary_process_id = os.getpid()
@@ -151,7 +121,7 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
         tps = MainServer(PrimaryServerRequestHandler,
                          self.parsed_args.tp_sap[0],
                          self.parsed_args.tp_sap[1],
-                         app_to_run=self.app,
+                         app_to_run={'app_to_run':self.app, 'thread_Q':self.thread_Q},
                          server_type=self.name
                          )
         self.start_thread(tps.serve_forever, tps.server_type + '-tps-server')
@@ -195,7 +165,12 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
                 data = self.thread_Q.get(False)
                 logger.debug(data)
 
-                self.thread_Q_handlers[data['command']](data['payload'])
+                if data['command'].upper() in ['PUT', 'DELETE', 'POST']:
+                    if self.isPrimary:
+                        self.update_backup(data['command'], data['payload'])
+                else:
+                    self.thread_Q_handlers[data['command']](data['payload'])
+
             except Empty:
                 pass
 
@@ -212,12 +187,22 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
         # @TODO: NIYI
         pass
 
-    def update_backup(self):
-        tp_service = TupleSpaceClient(self.parsed_args.backup_sap[0], self.parsed_args.backup_sap[1])
-        tps = self.app.search_tuple(".*", ".*")
-        res = tp_service.put(str(tps))
-        if res.data['status'] == 'ok':
-            logger.info('backup updated with {} records'.format(len(tps)))
+    def update_backup(self,cmd='', msg=''):
+        bk_tp_service = TupleSpaceClient(self.parsed_args.backup_sap[0], self.parsed_args.backup_sap[1])
+        if self.isPrimary:
+            if self.initial_backup_update:
+                update = self.app.search_tuple(".*", ".*")
+                res = bk_tp_service.put(str(update))
+                self.initial_backup_update = False
+            else:
+                update = msg
+
+                method = getattr(bk_tp_service, cmd.lower())
+                res = method(msg)
+
+            if res.data['status'] == 'ok':
+                logger.info('backup updated with {}'.format(update))
+
 
     def kill_process(self, pid):
         try:

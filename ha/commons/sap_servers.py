@@ -40,7 +40,7 @@ class BaseRequestHandler(object):
         self.client_conn.enqueue(self.data)
         # self.client_conn.send()
 
-    def recv(self)->dict:
+    def recv(self) -> dict:
         return self._json_load(self.client_conn.recv())
 
     def _json_encode(self) -> bytes:
@@ -79,20 +79,19 @@ class ServerEchoRequestHandler(BaseRequestHandler):
 
 class PrimaryServerRequestHandler(BaseRequestHandler):
 
-    def __init__(self, client_conn: ServerSideClientConn, app_to_run):
-        super().__init__(client_conn, app_to_run)
-
+    def __init__(self, client_conn: ServerSideClientConn, kwargs_dict):
+        super().__init__(client_conn, kwargs_dict['app_to_run'])
+        self.thread_Q = kwargs_dict['thread_Q']
 
     def handle(self):
         self.data = self.recv()
         try:
             method = getattr(self, "do_" + self.data['command'].upper())
+
         except Exception as err:
             logger.error("invalid command {}: {}".format(self.data["command"], err))
 
         method()
-
-        # self.send()
 
     def do_GET(self):
         res = self.pass_to_handler.get(self.data['payload'])
@@ -111,12 +110,18 @@ class PrimaryServerRequestHandler(BaseRequestHandler):
         self._pack_response_and_send(res)
 
     def _pack_response_and_send(self, res):
+        self.send_to_backup()
         res = RespondsePackage(status=res.split(":")[0], body=res.split(":")[1])
         res.pack()
         if 'client' in self.data:
             res['client'] = self.data.get('client')
         self.data = res.serialize()
         self.send()
+
+    def send_to_backup(self):
+        if self.data['command'].upper() in ['PUT', 'DELETE', 'POST']:
+            self.thread_Q.put(self.data)
+
 
 
 class HearthBeatRequestHandler(BaseRequestHandler):
@@ -127,10 +132,12 @@ class HearthBeatRequestHandler(BaseRequestHandler):
     def handle(self):
         self.data = self.recv()
         logger.debug("heartbeat recieved: {}".format(self.data))
+
+        #passing msg to queue
         self.pass_to_handler.put(self.data)
         res = RespondsePackage("ACK", "ACK")
         res.pack()
-        self.data=res.serialize()
+        self.data = res.serialize()
         self.send()
 
 
@@ -146,7 +153,6 @@ class ShutDownRequestHandler(BaseRequestHandler):
         self.pass_to_handler.put(self.data)
         self.data = res.serialize()
         self.send()
-
 
 
 class BaseServer(object):
@@ -189,7 +195,7 @@ class BaseServer(object):
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket.bind(self.server_address)
         except Exception as err:
-            raise OSError("could not bind {} to {}:{}: {}".format(self.server_type,*self.server_address, err))
+            raise OSError("could not bind {} to {}:{}: {}".format(self.server_type, *self.server_address, err))
 
         # specify number of simultaneous clients to support
         try:
@@ -336,7 +342,6 @@ class BaseServer(object):
         """
         handler = self.request_handler(client, self.pass_to_handler)
 
-
         handler.handle()
         self.finish_request()
 
@@ -390,6 +395,7 @@ class MainServer(BaseServer):
         self.server_type = server_type
         self.pass_to_handler = app_to_run
 
+
 class PrimaryServer(MainServer):
     def __init__(self, request_handler, hostname, port, app_to_run, server_type='primary server'):
         super().__init__(request_handler, hostname, port)
@@ -404,6 +410,7 @@ class PrimaryServer(MainServer):
         #     data = self.pass_to_handler.get(False)
         # except Empty:
         #     pass
+
 
 class ProxyServer(BaseServer):
 
@@ -426,7 +433,7 @@ class ProxyServer(BaseServer):
 
 class HeartBeatServer(BaseServer):
 
-    def __init__(self, request_handler: HearthBeatRequestHandler, hostname, port,timeout:int=2,
+    def __init__(self, request_handler: HearthBeatRequestHandler, hostname, port, timeout: int = 2,
                  server_type='heartbeat', Q=None):
         super().__init__(request_handler, hostname, port, timeout=timeout)
         self.client_tags = 'clt'
@@ -439,10 +446,9 @@ class HeartBeatServer(BaseServer):
         self.pass_to_handler.put(rq.pack())
 
 
-
 class ShutdownServer(BaseServer):
 
-    def __init__(self, request_handler: ShutDownRequestHandler, hostname, port,timeout:int=None,
+    def __init__(self, request_handler: ShutDownRequestHandler, hostname, port, timeout: int = None,
                  server_type='shut-down', Q=None):
         super().__init__(request_handler, hostname, port, timeout=timeout)
         self.client_tags = 'clt'
@@ -484,7 +490,7 @@ class BaseMulitThreadAdmin(object):
                                 self.parsed_args.shutdown_sap[0],
                                 self.parsed_args.shutdown_sap[1],
                                 Q=self.thread_Q)
-            self.start_thread(sh.serve_forever, self.name +'-'+sh.server_type+"-listener")
+            self.start_thread(sh.serve_forever, self.name + '-' + sh.server_type + "-listener")
             self.shutdow_socket_started = True
 
     def start_thread(self, app_to_run, name):

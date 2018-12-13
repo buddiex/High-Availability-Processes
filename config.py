@@ -2,8 +2,8 @@ import  os
 
 
 RUNNING = ''
-DEBUG_MODE = True
-LOG = "ha"
+DEBUG_MODE = False
+LOG = "haha"
 MIN_TCP_PORT_NUM, MAX_TCP_PORT_NUM = (1, 65535)  # range of values for valid port numbers
 MESSAGE_COUNT_MIN, MESSAGE_COUNT_MAX = (5, 8)  # number of messages to send, min and max
 MESSAGE_DELAY_MIN, MESSAGE_DELAY_MAX = (2, 4)  # delay between messages to send in seconds, min and max
@@ -22,7 +22,6 @@ PRIMARY_SERVER_HEARTBEAT_IP = 'localhost'  # default to server on this host
 PRIMARY_SERVER_HEARTBEAT_PORT = 9995  # default to port 10000 on this host
 PRIMARY_SERVER_UPDATE_IP = 'localhost'  # default to server on this host
 PRIMARY_SERVER_UPDATE_PORT = 9990  # default to port 10000 on this host
-
 
 BACKUP_SERVER_2_PROXY_IP = 'localhost'  # default to server on this host
 BACKUP_SERVER_2_PROXY_PORT = 9994  # default to port 10000 on this host

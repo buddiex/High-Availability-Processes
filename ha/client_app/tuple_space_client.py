@@ -50,12 +50,12 @@ def main():
                 print(res.data['payload'])
                 print(res.data['status'])
 
-                res = tp_service.post('[("fal","niyilomo"),("gal","heyes"),("zal","heyes"),("gal","heyes")]')
+                res = tp_service.post('[("kdkdkd","niyilomo"),("osayamen","heyeeeeeees"), ("boss","heyes")]')
                 print(res.data['payload'])
                 print(res.data['status'])
-
-                res = tp_service.put('[("fal","niyi"),("gal","heyes"),("zal","heyes"),("galoolll","heyes")]')
-                print(res.data['payload'])
+                #
+                # res = tp_service.put('[("fal","niyi"),("gal","heyes"),("zal","heyes"),("galoolll","heyes")]')
+                # print(res.data['payload'])
 
             except ConnectionAbortedError as err:
                 #@TODO: implement a wait and retry here

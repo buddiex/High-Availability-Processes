@@ -96,7 +96,8 @@ class BaseClient:
     def _send_recv(self):
         try:
             self._send_message()
-            return Respondse(self._recieve_message())
+            msg = self._recieve_message()
+            return Respondse(msg)
         except Exception as err:
             msg = 'server terminated connection: {}'.format(err)
             logger.error(msg)
@@ -137,10 +138,6 @@ class TupleSpaceClient(BaseClient):
         self._package('PUT', args)
         return self._send_recv()
 
-    # def delete(self, args):
-    #     self._package('DELETE', args)
-    #     return self._send_recv()
-
     def delete(self, key, value):
         args = f"('{key}', '{value}')"
         self._package('DELETE', args)
@@ -149,16 +146,24 @@ class TupleSpaceClient(BaseClient):
 
 class HearBeatClient(BaseClient):
 
-    def __init__(self, server_IP, server_port):
+    def __init__(self, server_IP, server_port, Q):
         super().__init__(server_IP, server_port)
         self.counter = 1
+        self.thread_Q = Q
 
     def send_heartbeat(self):
         while True:
             msg = 'HB-'+str(self.counter)
             msg += ':'+str(os.getpid()) if self.counter == 1 else ''
             self._package('BEAT', msg)
-            self._send_recv()
+            try:
+                self._send_recv()
+            except:
+                rq = RequestPackage('PRIMARY_SHUTDOWN', '')
+                self.thread_Q.put(rq.pack())
+                break
+                logger.debug("exiting backup heartbeat")
+
             logger.debug("heartbeat sent")
             self.counter += 1
             time.sleep(conf.BEAT_PERIOD)
@@ -170,7 +175,7 @@ class ShortDownClient(BaseClient):
         super().__init__(server_IP, server_port)
 
     def shortdown(self):
-        self._package('SHORTDOWN', '')
+        self._package('SHUTDOWN', '')
         return self._send_recv()
 
     def register_with_proxy(self, addr):

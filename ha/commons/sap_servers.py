@@ -40,7 +40,7 @@ class BaseRequestHandler(object):
         self.client_conn.enqueue(self.data)
         # self.client_conn.send()
 
-    def recv(self)->dict:
+    def recv(self) -> dict:
         return self._json_load(self.client_conn.recv())
 
     def _json_encode(self) -> bytes:
@@ -79,20 +79,19 @@ class ServerEchoRequestHandler(BaseRequestHandler):
 
 class PrimaryServerRequestHandler(BaseRequestHandler):
 
-    def __init__(self, client_conn: ServerSideClientConn, app_to_run):
-        super().__init__(client_conn, app_to_run)
-
+    def __init__(self, client_conn: ServerSideClientConn, kwargs_dict):
+        super().__init__(client_conn, kwargs_dict['app_to_run'])
+        self.thread_Q = kwargs_dict['thread_Q']
 
     def handle(self):
         self.data = self.recv()
         try:
             method = getattr(self, "do_" + self.data['command'].upper())
+
         except Exception as err:
             logger.error("invalid command {}: {}".format(self.data["command"], err))
 
         method()
-
-        # self.send()
 
     def do_GET(self):
         res = self.pass_to_handler.get(self.data['payload'])
@@ -111,10 +110,18 @@ class PrimaryServerRequestHandler(BaseRequestHandler):
         self._pack_response_and_send(res)
 
     def _pack_response_and_send(self, res):
+        self.send_to_backup()
         res = RespondsePackage(status=res.split(":")[0], body=res.split(":")[1])
-        res['client'] = self.data['client']
+        res.pack()
+        if 'client' in self.data:
+            res['client'] = self.data.get('client')
         self.data = res.serialize()
         self.send()
+
+    def send_to_backup(self):
+        if self.data['command'].upper() in ['PUT', 'DELETE', 'POST']:
+            self.thread_Q.put(self.data)
+
 
 
 class HearthBeatRequestHandler(BaseRequestHandler):
@@ -125,9 +132,12 @@ class HearthBeatRequestHandler(BaseRequestHandler):
     def handle(self):
         self.data = self.recv()
         logger.debug("heartbeat recieved: {}".format(self.data))
+
+        #passing msg to queue
         self.pass_to_handler.put(self.data)
         res = RespondsePackage("ACK", "ACK")
-        self.data=res.serialize()
+        res.pack()
+        self.data = res.serialize()
         self.send()
 
 
@@ -137,9 +147,10 @@ class ShutDownRequestHandler(BaseRequestHandler):
 
     def handle(self):
         self.data = self.recv()
-        logger.debug("{} recieved: {}".format(self.data['command'], self.data['payload']))
+        logger.info("shutdown recieved: {}".format(self.data))
+        res = RespondsePackage("ACK", "Shutting down {}".format(self.client_conn.address))
+        res.pack()
         self.pass_to_handler.put(self.data)
-        res = RespondsePackage("ACK", self.data['command'])
         self.data = res.serialize()
         self.send()
 
@@ -184,7 +195,7 @@ class BaseServer(object):
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket.bind(self.server_address)
         except Exception as err:
-            raise OSError("could not bind {} to {}:{}: {}".format(self.server_type,*self.server_address, err))
+            raise OSError("could not bind {} to {}:{}: {}".format(self.server_type, *self.server_address, err))
 
         # specify number of simultaneous clients to support
         try:
@@ -206,12 +217,11 @@ class BaseServer(object):
             self.socket.setblocking(True)
             logger.info('{} service listening on {}:{}'.format(self.server_type, *self.server_address))
         try:
-
             conn, address = self.socket.accept()
-            logger.info('client {}:{} added'.format(*conn.getpeername()))
+            logger.info('client {}:{} added to {}'.format(*conn.getpeername(), self.server_type))
 
         except Exception as err:
-            raise ConnectionAbortedError(f"{self.server_type} cannot connect accept client: {err}")
+            raise
         self.socket.setblocking(False)
         new_conn = ServerSideClientConn(conn, address, con_name)
         if len(self.connections) < self.max_client_count:
@@ -228,10 +238,12 @@ class BaseServer(object):
         #    -.  pushing sent content to other clients, prepended with connection information
         # ------------------------------------------------------------------------------------
         while not self.shutdown:
+
             # need try/except block because aborting connections generates exceptions that bypass select
             try:
                 if not self.connections:
                     self.accept_new_connection()
+
                 try:
                     self.get_all_socket_activities()
                 except Exception as err:
@@ -262,7 +274,7 @@ class BaseServer(object):
                     pass
                 # end of all exchanges
                 self.socket.close()
-                logger.info('exiting {}'.format(self.server_type))
+                logger.info('exiting {} - error:{}'.format(self.server_type, err))
                 if conf.DEBUG_MODE: raise
 
     def _manage_readable_sockets(self):
@@ -383,6 +395,7 @@ class MainServer(BaseServer):
         self.server_type = server_type
         self.pass_to_handler = app_to_run
 
+
 class PrimaryServer(MainServer):
     def __init__(self, request_handler, hostname, port, app_to_run, server_type='primary server'):
         super().__init__(request_handler, hostname, port)
@@ -399,17 +412,14 @@ class PrimaryServer(MainServer):
         #     pass
 
 
-
 class ProxyServer(BaseServer):
 
     def __init__(self, request_handler: ProxyRequestHandler, server_conn: ClientConn, hostname, port,
-                 server_type='proxy', Q=None):
+                 server_type='proxy'):
         super().__init__(request_handler, hostname, port)
         self.client_tags = 'clt'
         self.server_type = server_type
         self.server_conn = server_conn
-        self.pass_to_handler = Q
-        self.regiter_q = Q
 
     def process_request(self, client: ServerSideClientConn) -> None:
         """  try to accept and logger.info incoming message from client
@@ -420,18 +430,10 @@ class ProxyServer(BaseServer):
         handler = self.request_handler(client, self.server_conn)
         handler.handle()
 
-    def monitoer_loop(self, new_primary):
-        #monitoery REIGERT Q
-
-        server_conn = ClientConn(new_primary)
-        server_conn.connect_client_to_socket()
-        self.server_conn = server_conn
-
-
 
 class HeartBeatServer(BaseServer):
 
-    def __init__(self, request_handler: HearthBeatRequestHandler, hostname, port,timeout:int=2,
+    def __init__(self, request_handler: HearthBeatRequestHandler, hostname, port, timeout: int = 2,
                  server_type='heartbeat', Q=None):
         super().__init__(request_handler, hostname, port, timeout=timeout)
         self.client_tags = 'clt'
@@ -444,18 +446,14 @@ class HeartBeatServer(BaseServer):
         self.pass_to_handler.put(rq.pack())
 
 
-
 class ShutdownServer(BaseServer):
 
-    def __init__(self, request_handler: ShutDownRequestHandler, hostname, port,timeout:int=None,
+    def __init__(self, request_handler: ShutDownRequestHandler, hostname, port, timeout: int = None,
                  server_type='shut-down', Q=None):
         super().__init__(request_handler, hostname, port, timeout=timeout)
         self.client_tags = 'clt'
         self.server_type = server_type
         self.pass_to_handler = Q
-
-    # def finish_request(self):
-    #     self.Q.put("SHUTDOWN_REQUESTED")
 
 
 class BaseMulitThreadAdmin(object):
@@ -474,9 +472,14 @@ class BaseMulitThreadAdmin(object):
     def monitor_threads(self):
         pass
 
-    def send_shutdwon(self, host, port):
+    def send_shutdown(self, host, port):
         shd = ShortDownClient(host, port)
-        reply = shd.shortdown()
+        try:
+            reply = shd.shortdown()
+            reply = reply.data['payload']
+        except ConnectionAbortedError as err:
+            reply = "client is down"
+        logger.info(reply)
 
     def shutdown_service(self):
         raise NotImplementedError
@@ -487,10 +490,11 @@ class BaseMulitThreadAdmin(object):
                                 self.parsed_args.shutdown_sap[0],
                                 self.parsed_args.shutdown_sap[1],
                                 Q=self.thread_Q)
-            self.start_thread(sh.serve_forever, sh.server_type)
+            self.start_thread(sh.serve_forever, self.name + '-' + sh.server_type + "-listener")
             self.shutdow_socket_started = True
 
     def start_thread(self, app_to_run, name):
+        logger.info("starting {} thread".format(name))
         s_thread = threading.Thread(target=app_to_run, name=name)
         s_thread.setDaemon(True)
         s_thread.start()

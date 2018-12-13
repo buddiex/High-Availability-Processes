@@ -7,7 +7,7 @@ class TupleSpaceApp:
 
     def __init__(self, tuple_space_file):
         self.tuple_space_file = tuple_space_file
-        self.tuple_space = {"fal": "niyi", "he": "6"}
+        self.tuple_space = {}
         pass
 
     def init(self):
@@ -19,32 +19,36 @@ class TupleSpaceApp:
         :param data:(keyExp,valExp)
         :return: list of matching key,val pairs. Empty list, if regex is invalid
         """
-        response = []
+
         try:
             key_expr, val_expr = eval(data)
-            validate_reg_ex(key_expr)
-            validate_reg_ex(val_expr)
-
-            response = [(k, v) for k, v in self.tuple_space.items()
-                        if re.match(key_expr, k) and re.match(val_expr, v)]
+            response = self.search_tuple(key_expr, val_expr)
         except:
             return self.error_msg('invlaid')
 
         return self.ok_msg(str(response))
 
-    def put(self, data):
+    def search_tuple(self, key_expr, val_expr):
+        validate_reg_ex(key_expr)
+        validate_reg_ex(val_expr)
+        response = [(k, v) for k, v in self.tuple_space.items()
+                    if re.match(key_expr, k) and re.match(val_expr, v)]
+        return response
+
+    def put(self, data:str)->str:
         """
             adds tuples to the tuple space,
-        :param data: list of tuples
-        :return: List containing (key, value) pairs that could not be added to the tuple space
         """
+
         not_added = []
         try:
             tuples_list = eval(data)
             if not isinstance(tuples_list, list):
-                raise ValueError("not list")
+                raise ValueError("not a list: put accepts only a valid list")
+        except ValueError as err:
+            return self.error_msg(err)
         except:
-            return self.error_msg('invlaid')
+            return self.error_msg('invlaid command')
 
         for tp in tuples_list:
 
@@ -53,6 +57,7 @@ class TupleSpaceApp:
                 self.tuple_space.update({tp[0]: tp[1]})
             else:
                 not_added.append(tp)
+
 
         return self.ok_msg(f'{not_added} not added to the tuple space')
 
@@ -79,7 +84,6 @@ class TupleSpaceApp:
                 self.tuple_space.update({tp[0]: tp[1]})
             else:
                 not_used.append(tp)
-
         return self.ok_msg(f'{not_used} not used to update the tuple space')
 
     def delete(self, data):

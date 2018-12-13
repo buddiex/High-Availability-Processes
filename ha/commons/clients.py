@@ -191,3 +191,7 @@ class ProxyClient(BaseClient):
     def send_sap(self, IP, port):
         self._package('PROXY', IP+":"+str(port))
         return self._send_recv()
+
+    def register_with_proxy(self, addr):
+        self._package('REGISTER', addr)
+        return self._send_recv()

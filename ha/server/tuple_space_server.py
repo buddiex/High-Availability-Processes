@@ -6,7 +6,7 @@ import time
 from queue import Empty
 from random import randint
 
-from ha.commons.clients import HearBeatClient, TupleSpaceClient,ProxyClient
+from ha.commons.clients import HearBeatClient, TupleSpaceClient,RegisterOnProxyClient
 from ha.commons.logger import get_module_logger
 import config as conf
 from ha.commons.sap_servers import HearthBeatRequestHandler, HeartBeatServer, MainServer, PrimaryServerRequestHandler, \
@@ -32,7 +32,7 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
         self.app = app
         self.thread_Q_handlers.update({
             'BEAT': self.handle_heartbeat_sap,
-            'PRIMARY_SHUTDOWN': self.handle_primary_shutdown_sap
+            'PRIMARY_SHUTDOWN': self.handle_primary_shutdown_req
         })
 
     def initialize(self):
@@ -42,7 +42,6 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
                 self.init_as_primary()
             else:
                 self.init_as_backup()
-
             self.monitor_threads()
         except InterruptedError as err:
             logger.error("{} Shutting down - error: {}".format(self.name, err))
@@ -53,7 +52,6 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
             self.shutdown_service()
 
     def init_as_primary(self):
-
         logger.info("initializing as primary server")
         self.primary_process_id = os.getpid()
         self.app.init()
@@ -76,9 +74,8 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
         self.get_first_heartbeat()
         self.update_backup()
 
-    def handle_primary_shutdown_sap(self, msg):
-        logger.debug('handling backup as primary restart')
-
+    def handle_primary_shutdown_req(self, msg):
+        logger.info('initializing backup as primary')
         self.isPrimary = True
         self.name = 'primary'
         self.primary_process_id = os.getpid()
@@ -113,7 +110,6 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
                          )
 
             logger.info("Starting backup server")
-            logger.info(self.parsed_args.backup_sap[1])
             subprocess.Popen(backup_start_cmd, shell=False, stdout=None)
             self.backup_started = True
 
@@ -163,8 +159,6 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
             time.sleep(1)
             try:
                 data = self.thread_Q.get(False)
-                logger.debug(data)
-
                 if data['command'].upper() in ['PUT', 'DELETE', 'POST']:
                     if self.isPrimary:
                         self.update_backup(data['command'], data['payload'])
@@ -173,6 +167,8 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
 
             except Empty:
                 pass
+            except Exception as err:
+                raise
 
     def handle_heartbeat_sap(self, msg):
         if self.isPrimary:
@@ -181,18 +177,19 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
                 self.kill_process(self.backup_process_id)
                 logger.info('restarting backup')
                 self.backup_started = False
+                self.initial_backup_update = True
                 self.restart_backup()
 
     def register_on_proxy(self):
-        # @TODO: NIYI
+        # # @TODO: NIYI
         if self.isPrimary and not self.registered_on_proxy:
             try:
-                proxy_client = ProxyClient(self.parsed_args.proxy_sap[0], self.parsed_args.proxy_sap[1])
-                proxy_client.send_sap(self.parsed_args.tp_sap[0], self.parsed_args.tp_sap[1])
-
+                logger.info('primary registering with proxy server')
+                reg_client = RegisterOnProxyClient(self.parsed_args.proxy_sap[0], self.parsed_args.proxy_sap[1])
+                reg_client.register_with_proxy(self.parsed_args.tp_sap[0], self.parsed_args.tp_sap[1])
             except OSError:
                 raise
-            logger.info('service sap sent to proxy server')
+            logger.info('primary registered on proxy server')
             self.registered_on_proxy = True
 
         pass
@@ -206,12 +203,13 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
                 self.initial_backup_update = False
             else:
                 update = msg
-
                 method = getattr(bk_tp_service, cmd.lower())
                 res = method(msg)
 
             if res.data['status'] == 'ok':
-                logger.info('backup updated with {}'.format(update))
+                logger.info('backup updated')
+                logger.debug('backup updated with {}'.format(update))
+
 
 
     def kill_process(self, pid):
@@ -227,3 +225,4 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
         logger.info("shutting down all {} server services".format(self.name))
         if self.isPrimary:
             self.app.shutdown()
+            #@TODO: send shutdown to backup

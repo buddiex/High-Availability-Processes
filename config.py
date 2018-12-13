@@ -10,8 +10,10 @@ MESSAGE_DELAY_MIN, MESSAGE_DELAY_MAX = (2, 4)  # delay between messages to send 
 
 PROXY_2_CLIENT_IP = 'localhost'  # recieve request from clients
 PROXY_2_CLIENT_PORT = 9999
-PROXY_COMM_IP = 'localhost'  # listen for shutdown and primary register command
-PROXY_COMM_PORT = 9997  #
+PROXY_SHUTDOWN_IP = 'localhost'  # listen for shutdown and primary register command
+PROXY_SHUTDOWN_PORT = 9997  #
+PROXY_PRIMARY_REG_IP = 'localhost'  # listen for shutdown and primary register command
+PROXY_PRIMARY_REG_PORT = 9989  #
 
 
 PRIMARY_SERVER_2_PROXY_IP = 'localhost'  # default to server on this host
@@ -33,7 +35,7 @@ BACKUP_SERVER_UPDATE_IP = 'localhost'  # default to server on this host
 BACKUP_SERVER_UPDATE_PORT = 9991  # default to port 10000 on this host
 
 
-REGISTER_WAIT_TIME = 10
+REGISTER_WAIT_TIME = 20
 HEARTBEAT_WAIT_TIME = 5
 BEAT_PERIOD = 2
 

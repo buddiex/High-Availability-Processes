@@ -178,20 +178,13 @@ class ShortDownClient(BaseClient):
         self._package('SHUTDOWN', '')
         return self._send_recv()
 
-    def register_with_proxy(self, addr):
-        self._package('REGISTER', addr)
-        return self._send_recv()
 
 
-class ProxyClient(BaseClient):
+class RegisterOnProxyClient(BaseClient):
 
     def __init__(self, server_IP, server_port):
         super().__init__(server_IP, server_port)
 
-    def send_sap(self, IP, port):
-        self._package('PROXY', IP+":"+str(port))
-        return self._send_recv()
-
-    def register_with_proxy(self, addr):
-        self._package('REGISTER', addr)
+    def register_with_proxy(self, IP, port):
+        self._package('REGISTER', IP+":"+str(port))
         return self._send_recv()

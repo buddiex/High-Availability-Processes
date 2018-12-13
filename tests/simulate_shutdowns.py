@@ -24,15 +24,21 @@ def send_primay_shutdown():
     send_shutdown(host, port)
 
 
-def main():
-    send_primay_shutdown()
+def main(simulate_type):
+    if simulate_type == 'primary_shutdown':
+        send_primay_shutdown()
+    if simulate_type == 'backup_shutdown':
+        send_backup_shutdown()
     # send_backup_shutdown()
 
 
 
+# python .\higha.py server
+# python .\higha.py simulate -type primary_shutdown
+# python .\higha.py simulate -type backup_shutdown
 # Get-Process | where ProcessName -Match python
 # Stop-Process -Name python
-#  Get-Content -Path "haha.log" -Wait
+# Get-Content -Path "haha.log" -Wait
 
 if __name__ == '__main__':
     main()

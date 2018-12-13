@@ -147,10 +147,24 @@ class ShutDownRequestHandler(BaseRequestHandler):
 
     def handle(self):
         self.data = self.recv()
-        logger.info("shutdown recieved: {}".format(self.data))
+        logger.info("shutdown recieved: {}".format(self.data['command']))
         res = RespondsePackage("ACK", "Shutting down {}".format(self.client_conn.address))
         res.pack()
         self.pass_to_handler.put(self.data)
+        self.data = res.serialize()
+        self.send()
+
+
+class ProxyRegisterPrimaryRequestHandler(BaseRequestHandler):
+    def __init__(self, client_conn: ServerSideClientConn, thread_Q):
+        super().__init__(client_conn, thread_Q)
+
+    def handle(self):
+        self.data = self.recv()
+        logger.debug("registering recieved: {}".format(self.data))
+        self.pass_to_handler.put(self.data)
+        res = RespondsePackage("ACK", "proxy registered")
+        res.pack()
         self.data = res.serialize()
         self.send()
 
@@ -215,7 +229,7 @@ class BaseServer(object):
         self.socket.setblocking(False)
         if num_of_con == 0:
             self.socket.setblocking(True)
-            logger.info('{} service listening on {}:{}'.format(self.server_type, *self.server_address))
+            logger.info('{} service ready to accept conn on {}:{}'.format(self.server_type, *self.server_address))
         try:
             conn, address = self.socket.accept()
             logger.info('client {}:{} added to {}'.format(*conn.getpeername(), self.server_type))
@@ -241,6 +255,8 @@ class BaseServer(object):
 
             # need try/except block because aborting connections generates exceptions that bypass select
             try:
+                self.monitor_loop()
+
                 if not self.connections:
                     self.accept_new_connection()
 
@@ -261,7 +277,7 @@ class BaseServer(object):
 
                 self._manage_writable_sockets()
 
-                self.monitor_loop()
+
 
                 time.sleep(0.1)
 
@@ -282,7 +298,7 @@ class BaseServer(object):
             try:
                 self.process_request(client_conn)
             except (ConnectionAbortedError, ConnectionResetError) as err:
-                logger.error("closing connection {}:{}".format(*client_conn.peername()))
+                logger.debug("{} closing connection {}:{}".format(self.server_type,*client_conn.peername()))
                 if client_conn.socket in self._send_sockets:
                     self._send_sockets.remove(client_conn.socket)
                 if client_conn.socket in self._recv_sockets:
@@ -414,21 +430,51 @@ class PrimaryServer(MainServer):
 
 class ProxyServer(BaseServer):
 
-    def __init__(self, request_handler: ProxyRequestHandler, server_conn: ClientConn, hostname, port,
-                 server_type='proxy'):
-        super().__init__(request_handler, hostname, port)
+    def __init__(self, request_handler: ProxyRequestHandler, server_conn: ClientConn, hostname, port, Q:Queue, max_client_count ,
+                 server_type='proxy',):
+        super().__init__(request_handler, hostname, port, max_client_count = max_client_count)
         self.client_tags = 'clt'
         self.server_type = server_type
         self.server_conn = server_conn
+        self.Q_from_main = Q
 
     def process_request(self, client: ServerSideClientConn) -> None:
-        """  try to accept and logger.info incoming message from client
-             -.  on success, enqueue it for remaining clients
-             -.  on failure, issue error message, remove client from connection_list,
-                 and propagate exception to caller for further corrective action
-        """
         handler = self.request_handler(client, self.server_conn)
         handler.handle()
+
+    def monitor_loop(self):
+        data = ''
+        try:
+            data = self.Q_from_main.get(False)
+        except Empty:
+            pass
+
+        if data:
+            logger.info('new primary server request'.format(data))
+            server_conn = ClientConn(data)
+            server_conn.connect_client_to_socket()
+            self.server_conn = server_conn
+            logger.info('new primary server {} registered on proxy'.format(data))
+
+
+
+class ProxyRegisterPrimaryServer(BaseServer):
+
+    def __init__(self, request_handler: ProxyRegisterPrimaryRequestHandler, hostname, port, timeout: int = None,
+                 server_type='register-primary', Q=None, max_client_count = 5):
+        super().__init__(request_handler, hostname, port, timeout=timeout, max_client_count = 1)
+        self.client_tags = 'clt'
+        self.server_type = server_type
+        self.pass_to_handler = Q
+
+class ShutdownServer(BaseServer):
+
+    def __init__(self, request_handler: ShutDownRequestHandler, hostname, port, timeout: int = None,
+                 server_type='shut-down', Q=None):
+        super().__init__(request_handler, hostname, port, timeout=timeout, max_client_count=1)
+        self.client_tags = 'clt'
+        self.server_type = server_type
+        self.pass_to_handler = Q
 
 
 class HeartBeatServer(BaseServer):
@@ -444,16 +490,6 @@ class HeartBeatServer(BaseServer):
         logger.info("hearbeat lost")
         rq = RequestPackage('BEAT', 'NO_HEART_BEAT')
         self.pass_to_handler.put(rq.pack())
-
-
-class ShutdownServer(BaseServer):
-
-    def __init__(self, request_handler: ShutDownRequestHandler, hostname, port, timeout: int = None,
-                 server_type='shut-down', Q=None):
-        super().__init__(request_handler, hostname, port, timeout=timeout)
-        self.client_tags = 'clt'
-        self.server_type = server_type
-        self.pass_to_handler = Q
 
 
 class BaseMulitThreadAdmin(object):

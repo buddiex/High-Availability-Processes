@@ -7,6 +7,7 @@ from ha.commons.logger import get_module_logger
 from ha.proxy.proxy_server import ProxyThreadAdmin
 from ha.server.tuple_space_server import TupleSpaceThreadAdmin
 from ha.server.tuple_space_app.tuplespace_app import TupleSpaceApp
+from tests.simulate_shutdowns import main
 
 
 # logger = get_module_logger(__name__)
@@ -14,6 +15,10 @@ from ha.server.tuple_space_app.tuplespace_app import TupleSpaceApp
 
 def client(args_in):
     print(args_in.z)
+
+
+def simulate(args=''):
+    main(args.simulatn_type)
 
 
 def proxy(args_in):
@@ -42,24 +47,38 @@ if __name__ == "__main__":
     client_args.add_argument('z')
     client_args.set_defaults(func=client)
 
+    simulate_args = subparsers.add_parser('simulate', help="client related commands, <client> - h")
+    simulate_args.add_argument('-type', dest='simulatn_type', help="simulation type")
+    simulate_args.set_defaults(func=simulate)
+
     proxy_bar = subparsers.add_parser('proxy', help="proxy related commands, <proxy> - h")
-    proxy_bar.add_argument('-tpsap', '--tp-sap', dest='tp_sap', type=to_tuple,
-                             default=(conf.PRIMARY_SERVER_2_PROXY_IP, conf.PRIMARY_SERVER_2_PROXY_PORT))
-    proxy_bar.add_argument('z')
+    proxy_bar.add_argument('-proxysap', '--proxy-sap', dest='proxy_sap', type=to_tuple,
+                           default=(conf.PROXY_2_CLIENT_IP, conf.PROXY_2_CLIENT_PORT))
+    proxy_bar.add_argument('-shutdown', '--shutdown-sap', dest='shutdown_sap', type=to_tuple,
+                           default=(conf.PROXY_SHUTDOWN_IP, conf.PROXY_SHUTDOWN_PORT))
+    proxy_bar.add_argument('-primaryreg', '--primary-reg-sap', dest='primary_reg_sap', type=to_tuple,
+                           default=(conf.PROXY_PRIMARY_REG_IP, conf.PROXY_PRIMARY_REG_PORT))
     proxy_bar.set_defaults(func=proxy)
 
     server_args = subparsers.add_parser('server', help="for server related commands, <server> - h")
     server_args.add_argument('-tpfile', '--tuple-space-file', dest='tuple_space_file', default=conf.TUPLE_SPACE_JSON)
 
-    server_args.add_argument('-tpsap', '--tp-sap', dest='tp_sap', type=to_tuple, default=(conf.PRIMARY_SERVER_2_PROXY_IP, conf.PRIMARY_SERVER_2_PROXY_PORT))
-    server_args.add_argument('-shutdown', '--shutdown-sap', dest='shutdown_sap', type=to_tuple,default=(conf.PRIMARY_SERVER_SHUTDOWN_IP, conf.PRIMARY_SERVER_SHUTDOWN_PORT))
-    server_args.add_argument('-heartbeat', '--heartbeat-sap', dest='heartbeat_sap', type=to_tuple,default=(conf.PRIMARY_SERVER_HEARTBEAT_IP, conf.PRIMARY_SERVER_HEARTBEAT_PORT))
+    server_args.add_argument('-tpsap', '--tp-sap', dest='tp_sap', type=to_tuple,
+                             default=(conf.PRIMARY_SERVER_2_PROXY_IP, conf.PRIMARY_SERVER_2_PROXY_PORT))
+    server_args.add_argument('-shutdown', '--shutdown-sap', dest='shutdown_sap', type=to_tuple,
+                             default=(conf.PRIMARY_SERVER_SHUTDOWN_IP, conf.PRIMARY_SERVER_SHUTDOWN_PORT))
+    server_args.add_argument('-heartbeat', '--heartbeat-sap', dest='heartbeat_sap', type=to_tuple,
+                             default=(conf.PRIMARY_SERVER_HEARTBEAT_IP, conf.PRIMARY_SERVER_HEARTBEAT_PORT))
 
-    server_args.add_argument('-backup', '--backup-sap', dest='backup_sap', type=to_tuple, default=(conf.BACKUP_SERVER_2_PROXY_IP, conf.BACKUP_SERVER_2_PROXY_PORT))
-    server_args.add_argument('-bk_shutdown', '--bk-shutdown-sap', dest='bk_shutdown_sap', type=to_tuple, default=(conf.BACKUP_SERVER_SHUTDOWN_IP, conf.BACKUP_SERVER_SHUTDOWN_PORT))
-    server_args.add_argument('-bk_heartbeat', '--bk-heartbeat-sap', dest='bk_heartbeat_sap', type=to_tuple,default=(conf.BACKUP_SERVER_HEARTBEAT_IP, conf.BACKUP_SERVER_HEARTBEAT_PORT))
+    server_args.add_argument('-backup', '--backup-sap', dest='backup_sap', type=to_tuple,
+                             default=(conf.BACKUP_SERVER_2_PROXY_IP, conf.BACKUP_SERVER_2_PROXY_PORT))
+    server_args.add_argument('-bk_shutdown', '--bk-shutdown-sap', dest='bk_shutdown_sap', type=to_tuple,
+                             default=(conf.BACKUP_SERVER_SHUTDOWN_IP, conf.BACKUP_SERVER_SHUTDOWN_PORT))
+    server_args.add_argument('-bk_heartbeat', '--bk-heartbeat-sap', dest='bk_heartbeat_sap', type=to_tuple,
+                             default=(conf.BACKUP_SERVER_HEARTBEAT_IP, conf.BACKUP_SERVER_HEARTBEAT_PORT))
 
-    server_args.add_argument('-proxy', '--proxy-sap', dest='proxy_sap', type=to_tuple, default=(conf.PROXY_COMM_IP, conf.PROXY_COMM_PORT))
+    server_args.add_argument('-proxy', '--proxy-sap', dest='proxy_sap', type=to_tuple,
+                             default=(conf.PROXY_PRIMARY_REG_IP, conf.PROXY_PRIMARY_REG_PORT))
 
     server_args.add_argument('--is_primary', default=True, dest='is_primary', type=lambda x: (str(x).lower() == 'true'))
     server_args.add_argument('-primary_id', '--primary-process-id', dest='primary_id', default=None)
@@ -71,5 +90,4 @@ if __name__ == "__main__":
     #                     datefmt='%d-%m-%Y:%H:%M:%S')
 
     args.func(args)
-    print('shutdown complete')
     # time.sleep(30)

@@ -137,9 +137,9 @@ class ShutDownRequestHandler(BaseRequestHandler):
 
     def handle(self):
         self.data = self.recv()
-        logger.info("Shutdown recieved: {}".format(self.data))
+        logger.debug("{} recieved: {}".format(self.data['command'], self.data['payload']))
         self.pass_to_handler.put(self.data)
-        res = RespondsePackage("ACK", "Shutting down {}".format(self.client_conn.address))
+        res = RespondsePackage("ACK", self.data['command'])
         self.data = res.serialize()
         self.send()
 
@@ -403,11 +403,13 @@ class PrimaryServer(MainServer):
 class ProxyServer(BaseServer):
 
     def __init__(self, request_handler: ProxyRequestHandler, server_conn: ClientConn, hostname, port,
-                 server_type='proxy'):
+                 server_type='proxy', Q=None):
         super().__init__(request_handler, hostname, port)
         self.client_tags = 'clt'
         self.server_type = server_type
         self.server_conn = server_conn
+        self.pass_to_handler = Q
+        self.regiter_q = Q
 
     def process_request(self, client: ServerSideClientConn) -> None:
         """  try to accept and logger.info incoming message from client
@@ -417,6 +419,14 @@ class ProxyServer(BaseServer):
         """
         handler = self.request_handler(client, self.server_conn)
         handler.handle()
+
+    def monitoer_loop(self, new_primary):
+        #monitoery REIGERT Q
+
+        server_conn = ClientConn(new_primary)
+        server_conn.connect_client_to_socket()
+        self.server_conn = server_conn
+
 
 
 class HeartBeatServer(BaseServer):

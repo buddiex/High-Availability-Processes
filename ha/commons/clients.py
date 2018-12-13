@@ -173,6 +173,10 @@ class ShortDownClient(BaseClient):
         self._package('SHORTDOWN', '')
         return self._send_recv()
 
+    def register_with_proxy(self, addr):
+        self._package('REGISTER', addr)
+        return self._send_recv()
+
 
 class ProxyClient(BaseClient):
 

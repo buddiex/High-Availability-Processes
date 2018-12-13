@@ -177,11 +177,6 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
             except OSError:
                 pass
         self.registered_on_proxy = True
-        """
-        if not self.registered_on_proxy:
-            
-            self.registered_on_proxy = True
-        """
 
     def update_backup(self):
         #@TODO: NIYI

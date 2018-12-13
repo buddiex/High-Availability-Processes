@@ -150,16 +150,24 @@ class TupleSpaceClient(BaseClient):
 
 class HearBeatClient(BaseClient):
 
-    def __init__(self, server_IP, server_port):
+    def __init__(self, server_IP, server_port, Q):
         super().__init__(server_IP, server_port)
         self.counter = 1
+        self.thread_Q = Q
 
     def send_heartbeat(self):
         while True:
             msg = 'HB-'+str(self.counter)
             msg += ':'+str(os.getpid()) if self.counter == 1 else ''
             self._package('BEAT', msg)
-            self._send_recv()
+            try:
+                self._send_recv()
+            except:
+                rq = RequestPackage('PRIMARY_SHUTDOWN', '')
+                self.thread_Q.put(rq.pack())
+                break
+                logger.debug("exiting backup heartbeat")
+
             logger.debug("heartbeat sent")
             self.counter += 1
             time.sleep(conf.BEAT_PERIOD)

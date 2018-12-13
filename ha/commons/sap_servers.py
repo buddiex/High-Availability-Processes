@@ -143,8 +143,8 @@ class ShutDownRequestHandler(BaseRequestHandler):
         logger.info("shutdown recieved: {}".format(self.data))
         res = RespondsePackage("ACK", "Shutting down {}".format(self.client_conn.address))
         res.pack()
-        self.data = res.serialize()
         self.pass_to_handler.put(self.data)
+        self.data = res.serialize()
         self.send()
 
 
@@ -449,9 +449,6 @@ class ShutdownServer(BaseServer):
         self.server_type = server_type
         self.pass_to_handler = Q
 
-    # def finish_request(self):
-    #     self.Q.put("SHUTDOWN_REQUESTED")
-
 
 class BaseMulitThreadAdmin(object):
     def __init__(self, parsed_args: argparse.ArgumentParser()):
@@ -469,10 +466,11 @@ class BaseMulitThreadAdmin(object):
     def monitor_threads(self):
         pass
 
-    def send_shutdwon(self, host, port):
+    def send_shutdown(self, host, port):
         shd = ShortDownClient(host, port)
         try:
             reply = shd.shortdown()
+            reply = reply.data['payload']
         except ConnectionAbortedError as err:
             reply = "client is down"
         logger.info(reply)

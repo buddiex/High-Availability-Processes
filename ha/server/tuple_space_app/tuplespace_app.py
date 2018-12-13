@@ -35,11 +35,9 @@ class TupleSpaceApp:
                     if re.match(key_expr, k) and re.match(val_expr, v)]
         return response
 
-    def put(self, data):
+    def put(self, data:str)->str:
         """
             adds tuples to the tuple space,
-        :param data: list of tuples
-        :return: List containing (key, value) pairs that could not be added to the tuple space
         """
 
         not_added = []

@@ -1,5 +1,6 @@
 import argparse
 
+from ha.commons.clients import ShortDownClient
 from ha.commons.sap_servers import ProxyServer, ProxyRequestHandler, BaseMulitThreadAdmin
 from ha.commons.connections import ClientConn
 import config as conf
@@ -23,7 +24,6 @@ class ProxyThreadAdmin(BaseMulitThreadAdmin):
 
 
 def main(host, port):
-    # server = PrimaryServer(ProxyRequestHandler,host, port)
     server_conn = ClientConn((conf.PRIMARY_SERVER_2_PROXY_IP, conf.PRIMARY_SERVER_2_PROXY_PORT))
     server_conn.connect_client_to_socket()
     server = ProxyServer(ProxyRequestHandler, server_conn, host, port)

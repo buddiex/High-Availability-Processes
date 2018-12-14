@@ -18,30 +18,52 @@ def client(args_in):
 
 
 def simulate(args=''):
+    """
+    Simulate shutdown requests - primary_shutdown, backup_shutdown
+    :param args:
+    :return:
+    """
     main(args.simulatn_type)
 
 
 def proxy(args_in):
+    """
+    Start Proxy service and initialize it
+    :param args_in:
+    :return:
+    """
     Proxy_service = ProxyThreadAdmin(args_in)
     Proxy_service.server_script_name = sys.argv[0]
     Proxy_service.initialize()
 
 
 def server(args_in):
+    """
+    Start tuplesprace service, using the required arguments (SAPS, and tuple space file)
+    :param args_in:
+    :return:
+    """
     tuple_space_service = TupleSpaceThreadAdmin(args_in, TupleSpaceApp(args_in.tuple_space_file))
     tuple_space_service.server_script_name = sys.argv[0]
     tuple_space_service.initialize()
 
 
 def to_tuple(arg_in):
+    """
+    Define structure of SAPs as tuple.
+    It converts string values to python tuple
+    :return:
+    """
     return eval(arg_in)
 
 
 if __name__ == "__main__":
-    # get current script name - used to start backup service
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--stats', action='store_true', help='returns a summary of the system')
     subparsers = parser.add_subparsers(title='sub-commands')
+
+    # Parse client arguments
 
     client_args = subparsers.add_parser('client', help="client related commands, <client> - h")
     client_args.add_argument('z')
@@ -51,6 +73,8 @@ if __name__ == "__main__":
     simulate_args.add_argument('-type', dest='simulatn_type', help="simulation type")
     simulate_args.set_defaults(func=simulate)
 
+    # Parse proxy service arguments
+
     proxy_bar = subparsers.add_parser('proxy', help="proxy related commands, <proxy> - h")
     proxy_bar.add_argument('-proxysap', '--proxy-sap', dest='proxy_sap', type=to_tuple,
                            default=(conf.PROXY_2_CLIENT_IP, conf.PROXY_2_CLIENT_PORT))
@@ -59,6 +83,8 @@ if __name__ == "__main__":
     proxy_bar.add_argument('-primaryreg', '--primary-reg-sap', dest='primary_reg_sap', type=to_tuple,
                            default=(conf.PROXY_PRIMARY_REG_IP, conf.PROXY_PRIMARY_REG_PORT))
     proxy_bar.set_defaults(func=proxy)
+
+    # Parse server arguments
 
     server_args = subparsers.add_parser('server', help="for server related commands, <server> - h")
     server_args.add_argument('-tpfile', '--tuple-space-file', dest='tuple_space_file', default=conf.TUPLE_SPACE_JSON)

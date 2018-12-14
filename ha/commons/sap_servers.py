@@ -15,10 +15,16 @@ logger = get_module_logger(__name__)
 
 
 class BaseRequestHandler(object):
-    """Base class for request handler classes.
+    """
+    Base class for request handler classes.
     """
 
     def __init__(self, client_conn: ServerSideClientConn, pass_to_handler):
+        """
+        Intialize request handler parameters
+        :param client_conn: serverside to client connection
+        :param pass_to_handler: data to be used by handler
+        """
         self.client_conn = client_conn
         self.setup()
         self.pass_to_handler = pass_to_handler
@@ -27,6 +33,7 @@ class BaseRequestHandler(object):
         #     self.handle()
         # finally:
         #     self.finish()
+
 
     def setup(self):
         pass
@@ -44,10 +51,18 @@ class BaseRequestHandler(object):
         return self._json_load(self.client_conn.recv())
 
     def _json_encode(self) -> bytes:
+        """
+        :return: converts receievd data to json format
+        """
         rtn = json.dumps(self.data).encode()
         return rtn
 
     def _json_load(self, msg) -> dict:
+        """
+
+        :param msg: data nin json format
+        :return: Deserialize json data
+        """
         return json.loads(msg)
 
     def finish(self):
@@ -55,11 +70,18 @@ class BaseRequestHandler(object):
 
 
 class ProxyRequestHandler(BaseRequestHandler):
+    """
+        Handles all request sent to the proxy service
+    """
 
     def __init__(self, client_conn: ServerSideClientConn, server_conn: ClientConn):
         super().__init__(client_conn, server_conn)
 
     def handle(self):
+        """
+        Receive proxy request and handle it
+        :return:
+        """
         self.data = self.recv()
         self.data['client'] = self.client_conn.peername()
         self.pass_to_handler.enqueue(self._json_encode())
@@ -73,17 +95,29 @@ class ProxyRequestHandler(BaseRequestHandler):
 
 class ServerEchoRequestHandler(BaseRequestHandler):
     def handle(self):
+        """
+        Receive echo request and handle it
+        Basically, receive and return what is received
+        :return:
+        """
         self.data = self.recv()
         self.send()
 
 
 class PrimaryServerRequestHandler(BaseRequestHandler):
+    """
+     Handle requests for Primary server
+    """
 
     def __init__(self, client_conn: ServerSideClientConn, kwargs_dict):
         super().__init__(client_conn, kwargs_dict['app_to_run'])
         self.thread_Q = kwargs_dict['thread_Q']
 
     def handle(self):
+        """
+        Handle primary server requests and call the required method
+        :return:
+        """
         self.data = self.recv()
         try:
             method = getattr(self, "do_" + self.data['command'].upper())
@@ -125,6 +159,10 @@ class PrimaryServerRequestHandler(BaseRequestHandler):
 
 
 class HearthBeatRequestHandler(BaseRequestHandler):
+    """
+    Handle hearbaat requests, which are used to check if server is still alive
+    :return:
+    """
     def __init__(self, client_conn: ServerSideClientConn, thread_Q):
         super().__init__(client_conn, thread_Q)
         self.thread_Q = thread_Q
@@ -142,6 +180,10 @@ class HearthBeatRequestHandler(BaseRequestHandler):
 
 
 class ShutDownRequestHandler(BaseRequestHandler):
+    """
+    Handle shutdown requests, which are used to kill servers
+    :return:
+    """
     def __init__(self, client_conn: ServerSideClientConn, thread_Q):
         super().__init__(client_conn, thread_Q)
 
@@ -156,6 +198,11 @@ class ShutDownRequestHandler(BaseRequestHandler):
 
 
 class ProxyRegisterPrimaryRequestHandler(BaseRequestHandler):
+    """
+    Registers primary server sap on proxy
+    :return:
+    """
+
     def __init__(self, client_conn: ServerSideClientConn, thread_Q):
         super().__init__(client_conn, thread_Q)
 

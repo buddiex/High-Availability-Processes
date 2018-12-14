@@ -1,0 +1,178 @@
+ --- 13-12-2018:19:09:00,113  MainThread                               thread INFO    sap_servers.py:533 >>> starting proxy-shut-down-listener thread
+ --- 13-12-2018:19:09:00,114  proxy-shut-down-listener                 thread INFO    sap_servers.py:232 >>> shut-down service ready to accept conn on localhost:9997
+ --- 13-12-2018:19:09:00,114  MainThread                               thread INFO    sap_servers.py:533 >>> starting proxy-register-primary-listener thread
+ --- 13-12-2018:19:09:00,115  MainThread                               thread INFO    proxy_server.py:45 >>> proxy waiting for primary server to register
+ --- 13-12-2018:19:09:00,115  proxy-register-primary-listener          thread INFO    sap_servers.py:232 >>> proxy-register-primary-listener service ready to accept conn on localhost:9989
+ --- 13-12-2018:19:09:20,115  MainThread                               thread ERROR   proxy_server.py:37 >>> proxy Shutting down no server sap after 20 secs
+Traceback (most recent call last):
+  File "C:\Users\niyif\PycharmProjects\High-Availability-Processes\ha\proxy\proxy_server.py", line 46, in wait_for_sap_registn
+    data = self.thread_Q.get(timeout=conf.REGISTER_WAIT_TIME)
+  File "C:\Users\niyif\AppData\Local\Programs\Python\Python37-32\lib\queue.py", line 178, in get
+    raise Empty
+_queue.Empty
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\niyif\PycharmProjects\High-Availability-Processes\ha\proxy\proxy_server.py", line 31, in initialize
+    self.wait_for_sap_registn()
+  File "C:\Users\niyif\PycharmProjects\High-Availability-Processes\ha\proxy\proxy_server.py", line 51, in wait_for_sap_registn
+    raise RuntimeError("no server sap after {} secs".format(conf.REGISTER_WAIT_TIME))
+RuntimeError: no server sap after 20 secs
+ --- 13-12-2018:19:11:28,859  MainThread                               thread INFO    sap_servers.py:533 >>> starting proxy-shut-down-listener thread
+ --- 13-12-2018:19:11:28,860  proxy-shut-down-listener                 thread INFO    sap_servers.py:232 >>> shut-down service ready to accept conn on localhost:9997
+ --- 13-12-2018:19:11:28,861  MainThread                               thread INFO    sap_servers.py:533 >>> starting proxy-register-primary-listener thread
+ --- 13-12-2018:19:11:28,861  MainThread                               thread INFO    proxy_server.py:45 >>> proxy waiting for primary server to register
+ --- 13-12-2018:19:11:28,861  proxy-register-primary-listener          thread INFO    sap_servers.py:232 >>> proxy-register-primary-listener service ready to accept conn on localhost:9989
+ --- 13-12-2018:19:11:40,257  MainThread                               thread INFO    tuple_space_server.py:55 >>> initializing as primary server
+ --- 13-12-2018:19:11:40,267  MainThread                               thread INFO    sap_servers.py:533 >>> starting primary-shut-down-listener thread
+ --- 13-12-2018:19:11:40,268  primary-shut-down-listener               thread INFO    sap_servers.py:232 >>> shut-down service ready to accept conn on localhost:9996
+ --- 13-12-2018:19:11:40,268  MainThread                               thread INFO    sap_servers.py:533 >>> starting primary-heartbeat-listener thread
+ --- 13-12-2018:19:11:40,269  MainThread                               thread INFO    tuple_space_server.py:112 >>> Starting backup server
+ --- 13-12-2018:19:11:40,269  primary-heartbeat-listener               thread INFO    sap_servers.py:232 >>> heartbeat service ready to accept conn on localhost:9995
+ --- 13-12-2018:19:11:40,274  MainThread                               thread INFO    tuple_space_server.py:147 >>> waiting for first heartbeat
+ --- 13-12-2018:19:11:40,371  MainThread                               thread INFO    sap_servers.py:533 >>> starting backup-shut-down-listener thread
+ --- 13-12-2018:19:11:40,372  backup-shut-down-listener                thread INFO    sap_servers.py:232 >>> shut-down service ready to accept conn on localhost:9993
+ --- 13-12-2018:19:11:40,372  MainThread                               thread INFO    sap_servers.py:533 >>> starting backup-tps-server thread
+ --- 13-12-2018:19:11:40,373  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9994
+ --- 13-12-2018:19:11:40,373  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9995
+ --- 13-12-2018:19:11:40,373  MainThread                               thread INFO    sap_servers.py:533 >>> starting backup-heartbeat-client thread
+ --- 13-12-2018:19:11:40,373  primary-heartbeat-listener               thread INFO    sap_servers.py:235 >>> client 127.0.0.1:2803 added to heartbeat
+ --- 13-12-2018:19:11:40,374  MainThread                               thread INFO    tuple_space_server.py:142 >>> backup heartbeat client running
+ --- 13-12-2018:19:11:40,374  MainThread                               thread INFO    tuple_space_server.py:157 >>> monitoring backup server threads 
+ --- 13-12-2018:19:11:40,476  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9994
+ --- 13-12-2018:19:11:40,476  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:2804 added to backup
+ --- 13-12-2018:19:11:40,577  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:11:40,578  MainThread                               thread INFO    sap_servers.py:533 >>> starting primary-tps-server thread
+ --- 13-12-2018:19:11:40,578  MainThread                               thread INFO    tuple_space_server.py:187 >>> primary registering with proxy server
+ --- 13-12-2018:19:11:40,579  primary-tps-server                       thread INFO    sap_servers.py:232 >>> primary service ready to accept conn on localhost:9998
+ --- 13-12-2018:19:11:40,579  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9989
+ --- 13-12-2018:19:11:40,579  proxy-register-primary-listener          thread INFO    sap_servers.py:235 >>> client 127.0.0.1:2805 added to proxy-register-primary-listener
+ --- 13-12-2018:19:11:40,580  MainThread                               thread INFO    proxy_server.py:48 >>> proxy registering localhost:9998 as primary
+ --- 13-12-2018:19:11:40,580  MainThread                               thread INFO    tuple_space_server.py:192 >>> primary registered on proxy server
+ --- 13-12-2018:19:11:40,580  MainThread                               thread INFO    tuple_space_server.py:157 >>> monitoring primary server threads 
+ --- 13-12-2018:19:11:40,581  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9998
+ --- 13-12-2018:19:11:40,581  primary-tps-server                       thread INFO    sap_servers.py:235 >>> client 127.0.0.1:2806 added to primary
+ --- 13-12-2018:19:11:40,581  MainThread                               thread INFO    sap_servers.py:533 >>> starting proxy thread
+ --- 13-12-2018:19:11:40,582  proxy                                    thread INFO    sap_servers.py:232 >>> proxy service ready to accept conn on localhost:9999
+ --- 13-12-2018:19:11:40,582  MainThread                               thread INFO    proxy_server.py:75 >>> monitoring proxy threads
+ --- 13-12-2018:19:11:40,779  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9994
+ --- 13-12-2018:19:11:40,782  proxy-register-primary-listener          thread INFO    sap_servers.py:232 >>> proxy-register-primary-listener service ready to accept conn on localhost:9989
+ --- 13-12-2018:19:12:11,270  proxy                                    thread INFO    sap_servers.py:235 >>> client 127.0.0.1:2807 added to proxy
+ --- 13-12-2018:19:12:12,597  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9994
+ --- 13-12-2018:19:12:12,598  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:2808 added to backup
+ --- 13-12-2018:19:12:12,598  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:12:12,800  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9994
+ --- 13-12-2018:19:12:13,598  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9994
+ --- 13-12-2018:19:12:13,599  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:2809 added to backup
+ --- 13-12-2018:19:12:13,599  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:12:13,801  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9994
+ --- 13-12-2018:19:12:14,602  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9994
+ --- 13-12-2018:19:12:14,602  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:2810 added to backup
+ --- 13-12-2018:19:12:14,602  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:12:14,804  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9994
+ --- 13-12-2018:19:12:15,426  proxy                                    thread INFO    sap_servers.py:232 >>> proxy service ready to accept conn on localhost:9999
+ --- 13-12-2018:19:12:16,604  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9994
+ --- 13-12-2018:19:12:16,604  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:2811 added to backup
+ --- 13-12-2018:19:12:16,604  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:12:16,806  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9994
+ --- 13-12-2018:19:12:17,604  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9994
+ --- 13-12-2018:19:12:17,604  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:2813 added to backup
+ --- 13-12-2018:19:12:17,605  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:12:17,807  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9994
+ --- 13-12-2018:19:12:18,605  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9994
+ --- 13-12-2018:19:12:18,605  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:2814 added to backup
+ --- 13-12-2018:19:12:18,606  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:12:18,808  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9994
+ --- 13-12-2018:19:12:19,607  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9994
+ --- 13-12-2018:19:12:19,608  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:2815 added to backup
+ --- 13-12-2018:19:12:19,608  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:12:19,810  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9994
+ --- 13-12-2018:19:12:20,608  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9994
+ --- 13-12-2018:19:12:20,609  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:2816 added to backup
+ --- 13-12-2018:19:12:20,609  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:12:20,811  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9994
+ --- 13-12-2018:19:12:22,611  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9994
+ --- 13-12-2018:19:12:22,611  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:2817 added to backup
+ --- 13-12-2018:19:12:22,612  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:12:22,814  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9994
+ --- 13-12-2018:19:12:23,613  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9994
+ --- 13-12-2018:19:12:23,613  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:2818 added to backup
+ --- 13-12-2018:19:12:23,613  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:12:23,815  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9994
+ --- 13-12-2018:19:16:44,845  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9996
+ --- 13-12-2018:19:16:44,845  primary-shut-down-listener               thread INFO    sap_servers.py:235 >>> client 127.0.0.1:4499 added to shut-down
+ --- 13-12-2018:19:16:44,846  primary-shut-down-listener               thread INFO    sap_servers.py:150 >>> shutdown recieved: SHUTDOWN
+ --- 13-12-2018:19:16:44,876  MainThread                               thread ERROR   tuple_space_server.py:47 >>> primary Shutting down - error: shutdown requested
+ --- 13-12-2018:19:16:44,876  MainThread                               thread INFO    tuple_space_server.py:225 >>> shutting down all primary server services
+ --- 13-12-2018:19:16:45,843  backup-heartbeat-client                  thread ERROR   clients.py:103 >>> server terminated connection: [WinError 10054] An existing connection was forcibly closed by the remote host
+ --- 13-12-2018:19:16:46,649  MainThread                               thread INFO    tuple_space_server.py:78 >>> initializing backup as primary
+ --- 13-12-2018:19:16:46,649  MainThread                               thread INFO    sap_servers.py:533 >>> starting primary-heartbeat-listener thread
+ --- 13-12-2018:19:16:46,650  MainThread                               thread INFO    tuple_space_server.py:112 >>> Starting backup server
+ --- 13-12-2018:19:16:46,650  primary-heartbeat-listener               thread INFO    sap_servers.py:232 >>> heartbeat service ready to accept conn on localhost:9992
+ --- 13-12-2018:19:16:46,682  MainThread                               thread INFO    tuple_space_server.py:147 >>> waiting for first heartbeat
+ --- 13-12-2018:19:16:46,786  MainThread                               thread INFO    sap_servers.py:533 >>> starting backup-shut-down-listener thread
+ --- 13-12-2018:19:16:46,787  backup-shut-down-listener                thread INFO    sap_servers.py:232 >>> shut-down service ready to accept conn on localhost:9996
+ --- 13-12-2018:19:16:46,787  MainThread                               thread INFO    sap_servers.py:533 >>> starting backup-tps-server thread
+ --- 13-12-2018:19:16:46,788  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9998
+ --- 13-12-2018:19:16:46,789  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9992
+ --- 13-12-2018:19:16:46,789  MainThread                               thread INFO    sap_servers.py:533 >>> starting backup-heartbeat-client thread
+ --- 13-12-2018:19:16:46,789  primary-heartbeat-listener               thread INFO    sap_servers.py:235 >>> client 127.0.0.1:4500 added to heartbeat
+ --- 13-12-2018:19:16:46,789  MainThread                               thread INFO    tuple_space_server.py:142 >>> backup heartbeat client running
+ --- 13-12-2018:19:16:46,790  MainThread                               thread INFO    tuple_space_server.py:157 >>> monitoring backup server threads 
+ --- 13-12-2018:19:16:46,891  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9998
+ --- 13-12-2018:19:16:46,891  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:4501 added to backup
+ --- 13-12-2018:19:16:46,891  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:16:46,891  MainThread                               thread INFO    tuple_space_server.py:187 >>> primary registering with proxy server
+ --- 13-12-2018:19:16:46,892  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9989
+ --- 13-12-2018:19:16:46,892  proxy-register-primary-listener          thread INFO    sap_servers.py:235 >>> client 127.0.0.1:4502 added to proxy-register-primary-listener
+ --- 13-12-2018:19:16:46,893  MainThread                               thread INFO    tuple_space_server.py:192 >>> primary registered on proxy server
+ --- 13-12-2018:19:16:46,893  MainThread                               thread INFO    tuple_space_server.py:87 >>> backup is now primary
+ --- 13-12-2018:19:16:47,93   backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9998
+ --- 13-12-2018:19:16:47,95   proxy-register-primary-listener          thread INFO    sap_servers.py:232 >>> proxy-register-primary-listener service ready to accept conn on localhost:9989
+ --- 13-12-2018:19:17:18,579  proxy                                    thread INFO    sap_servers.py:235 >>> client 127.0.0.1:4503 added to proxy
+ --- 13-12-2018:19:17:18,680  proxy                                    thread INFO    sap_servers.py:453 >>> new primary server request
+ --- 13-12-2018:19:17:18,681  proxy                                    thread INFO    connections.py:133 >>> connected to server: localhost:9994
+ --- 13-12-2018:19:17:18,681  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:4504 added to backup
+ --- 13-12-2018:19:17:18,681  proxy                                    thread INFO    sap_servers.py:457 >>> new primary server ('localhost', 9994) registered on proxy
+ --- 13-12-2018:19:17:19,910  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9998
+ --- 13-12-2018:19:17:19,910  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:4505 added to backup
+ --- 13-12-2018:19:17:19,911  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:17:20,113  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9998
+ --- 13-12-2018:19:17:21,912  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9998
+ --- 13-12-2018:19:17:21,913  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:4506 added to backup
+ --- 13-12-2018:19:17:21,913  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:17:22,115  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9998
+ --- 13-12-2018:19:17:22,822  proxy                                    thread INFO    sap_servers.py:232 >>> proxy service ready to accept conn on localhost:9999
+ --- 13-12-2018:19:17:22,914  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9998
+ --- 13-12-2018:19:17:22,914  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:4507 added to backup
+ --- 13-12-2018:19:17:22,915  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:17:23,117  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9998
+ --- 13-12-2018:19:17:23,916  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9998
+ --- 13-12-2018:19:17:23,916  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:4508 added to backup
+ --- 13-12-2018:19:17:23,917  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:17:24,119  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9998
+ --- 13-12-2018:19:17:24,918  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9998
+ --- 13-12-2018:19:17:24,918  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:4509 added to backup
+ --- 13-12-2018:19:17:24,919  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:17:25,121  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9998
+ --- 13-12-2018:19:17:25,919  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9998
+ --- 13-12-2018:19:17:25,919  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:4510 added to backup
+ --- 13-12-2018:19:17:25,920  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:17:26,122  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9998
+ --- 13-12-2018:19:17:27,921  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9998
+ --- 13-12-2018:19:17:27,921  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:4511 added to backup
+ --- 13-12-2018:19:17:27,922  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:17:28,124  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9998
+ --- 13-12-2018:19:17:28,923  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9998
+ --- 13-12-2018:19:17:28,923  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:4512 added to backup
+ --- 13-12-2018:19:17:28,924  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:17:29,126  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9998
+ --- 13-12-2018:19:17:29,925  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9998
+ --- 13-12-2018:19:17:29,925  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:4513 added to backup
+ --- 13-12-2018:19:17:29,926  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:17:30,127  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9998
+ --- 13-12-2018:19:17:30,926  MainThread                               thread INFO    connections.py:133 >>> connected to server: localhost:9998
+ --- 13-12-2018:19:17:30,926  backup-tps-server                        thread INFO    sap_servers.py:235 >>> client 127.0.0.1:4514 added to backup
+ --- 13-12-2018:19:17:30,927  MainThread                               thread INFO    tuple_space_server.py:210 >>> backup updated
+ --- 13-12-2018:19:17:31,129  backup-tps-server                        thread INFO    sap_servers.py:232 >>> backup service ready to accept conn on localhost:9998

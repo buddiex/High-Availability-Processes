@@ -39,6 +39,3 @@ def main(simulate_type):
 # Get-Process | where ProcessName -Match python
 # Stop-Process -Name python
 # Get-Content -Path "haha.log" -Wait
-
-if __name__ == '__main__':
-    main()

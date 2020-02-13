@@ -1,9 +1,6 @@
-import unittest
 import pytest
 import socket
-from unittest.mock import patch
-from ha.commons.sap_servers import MainServer, ServerEchoRequestHandler
-from tests.mocks import start_mock_server, get_free_port, start_tcp_main_server
+from tests.mocks import get_free_port, start_tcp_main_server
 from ha.commons.clients import TupleSpaceClient
 
 
@@ -26,9 +23,7 @@ def client(message):
         sock.shutdown(socket.SHUT_RDWR)
         sock.close()
 
-@pytest.mark.parametrize('data', [
-    'name'
-])
+@pytest.mark.parametrize('data', ['name'])
 def test_server(server, data):
     res = server.get(data)
     assert {'command': 'GET', 'payload': data}.items() <= res.items(), f'{res}'

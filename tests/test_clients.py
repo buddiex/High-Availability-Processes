@@ -7,22 +7,22 @@ from tests.mocks import start_mock_server, get_free_port, start_tcp_mock_server,
 from ha.commons.clients import get_users, client
 
 
-# class TestMockServer(unittest.TestCase):
-#
-#     def setUp(self):
-#         self.mock_server_port = get_free_port()
-#         start_mock_server(self.mock_server_port)
-#
-#     def test_request_response(self):
-#         mock_users_url = 'http://localhost:{port}/users'.format(port=self.mock_server_port)
-#
-#         # Patch USERS_URL so that the service uses the mock server URL instead of the real URL.
-#         with patch.dict('ha.commons.services.__dict__', {'USERS_URL': mock_users_url}):
-#             response = get_users()
-#
-#         # self.assertDictContainsSubset({'Content-Type': 'application/json; charset=utf-8'}, response.headers)
-#         self.assertTrue(response.ok)
-#         self.assertListEqual(response.json(), [])
+class TestMockServer(unittest.TestCase):
+
+    def setUp(self):
+        self.mock_server_port = get_free_port()
+        start_mock_server(self.mock_server_port)
+
+    def test_request_response(self):
+        mock_users_url = 'http://localhost:{port}/users'.format(port=self.mock_server_port)
+
+        # Patch USERS_URL so that the service uses the mock server URL instead of the real URL.
+        with patch.dict('ha.commons.services.__dict__', {'USERS_URL': mock_users_url}):
+            response = get_users()
+
+        # self.assertDictContainsSubset({'Content-Type': 'application/json; charset=utf-8'}, response.headers)
+        self.assertTrue(response.ok)
+        self.assertListEqual(response.json(), [])
 
 @pytest.fixture()
 def server1():

@@ -53,15 +53,15 @@ The requirements for this assignment are divisible into requirements for
 				-   **key** matches **keyexp**
 				-   **value** matches **valexp**
 		-   **PUT** -given a purported list of (**key**, **value**) pairs,
-		-   if the list is malformed, return an indication to this effect
-		-   else
-			-   for every pair such that
-				-   **key** and **value** are well-formed and
-				-   **key** is not yet present in the tuple space
-			
-			add (**key**, **value**) to the tuple space
+			-   if the list is malformed, return an indication to this effect
+			-   else
+				-   for every pair such that
+					-   **key** and **value** are well-formed and
+					-   **key** is not yet present in the tuple space
+				
+				add (**key**, **value**) to the tuple space
 
-			-   return all (**key**, **value**) pairs that could not be added to the tuple space
+				-   return all (**key**, **value**) pairs that could not be added to the tuple space
 		-   **POST** -given a purported list of (**key**, **value**) pairs,
 			-   if the list itself is malformed, return an indication to this effect
 			-   else
@@ -80,4 +80,4 @@ The requirements for this assignment are divisible into requirements for
 				-   **key** matches **keyexp**
 				-   **value** matches **valexp**
 			-   return a list of all (**key**, **value**) pairs that were removed from the tuple space
-		-   The service shall respond to other operators with an indication that the operator is not implemented.
+-   The service shall respond to other operators with an indication that the operator is not implemented.

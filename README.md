@@ -60,24 +60,4 @@ The requirements for this assignment are divisible into requirements for
 					-   **key** is not yet present in the tuple space
 				
 				add (**key**, **value**) to the tuple space
-
-				-   return all (**key**, **value**) pairs that could not be added to the tuple space
-		-   **POST** -given a purported list of (**key**, **value**) pairs,
-			-   if the list itself is malformed, return an indication to this effect
-			-   else
-				-   for every pair such that
-					-   **key** and **value** are well-formed and
-					-   **key** is not present in the tuple space
-				update the value associated with **key** to **value**
-			-   return  all (**key**, **value**) pairs that were not used to update the tuple space
-		-   **DELETE** - given a (**keyexp**, **valexp**) pair,
-			-   if the (**keyexp**, **valexp**) pattern is malformed, return an empty list.
-
-				_Note_: assume [Python regular expression syntax](https://docs.python.org/3/library/re.html) for **keyexp** and **valexp**.
-
-			-   otherwise
-			-   remove all (**key**, **value**) pairs from the tuple space such that
-				-   **key** matches **keyexp**
-				-   **value** matches **valexp**
-			-   return a list of all (**key**, **value**) pairs that were removed from the tuple space
--   The service shall respond to other operators with an indication that the operator is not implemented.
+The specification (`specs.doc`) and was written by [Dr. Phil Pfeiffer](https://www.linkedin.com/in/philpfeiffer/).

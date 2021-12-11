@@ -1,19 +1,21 @@
-from ha.commons.sap_servers import MainServer, PrimaryServerRequestHandler, HeartBeatServer, HearthBeatRequestHandler, ShutdownServer, ShutDownRequestHandler
-import config as conf
-from queue import Queue
 import threading
 import time
+from queue import Queue
+
+import config as conf
 from ha.commons.logger import get_module_logger
+from ha.commons.sap_servers import MainServer, PrimaryServerRequestHandler, HeartBeatServer, HearthBeatRequestHandler, \
+    ShutdownServer, ShutDownRequestHandler
 from ha.server.tuple_space_app.tuplespace_app import TupleSpaceApp
 
 logger = get_module_logger(__name__)
 
 
 def test_other_sap_servers():
-    thread_Q = Queue()
+    thread_q = Queue()
     servs = []
-    servs.append(HeartBeatServer(HearthBeatRequestHandler,'localhost', 1111, 2, Q=thread_Q))
-    servs.append(ShutdownServer(ShutDownRequestHandler, 'localhost', 11020, Q=thread_Q))
+    servs.append(HeartBeatServer(HearthBeatRequestHandler, 'localhost', 1111, 2, Q=thread_q))
+    servs.append(ShutdownServer(ShutDownRequestHandler, 'localhost', 11020, Q=thread_q))
     for th in servs:
         s_thread = threading.Thread(target=th.serve_forever)
         s_thread.start()
@@ -23,10 +25,9 @@ def test_other_sap_servers():
         time.sleep(1)
         print(i)
         try:
-            print(thread_Q.get(block=False))
+            print(thread_q.get(block=False))
         except:
             pass
-
 
 
 def main(host, port):

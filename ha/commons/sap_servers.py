@@ -1,15 +1,16 @@
 import argparse
 import json
 import select
+import socket
 import threading
 import time
-import socket
 from queue import Empty, Queue
 from typing import Dict
+
 import config as conf
-from ha.commons.logger import get_module_logger
-from ha.commons.connections import ServerSideClientConn, ClientConn
 from ha.commons.clients import RespondsePackage, RequestPackage, ShortDownClient
+from ha.commons.connections import ServerSideClientConn, ClientConn
+from ha.commons.logger import get_module_logger
 
 logger = get_module_logger(__name__)
 
@@ -33,7 +34,6 @@ class BaseRequestHandler(object):
         #     self.handle()
         # finally:
         #     self.finish()
-
 
     def setup(self):
         pass
@@ -157,12 +157,12 @@ class PrimaryServerRequestHandler(BaseRequestHandler):
             self.thread_Q.put(self.data)
 
 
-
 class HearthBeatRequestHandler(BaseRequestHandler):
     """
     Handle hearbaat requests, which are used to check if server is still alive
     :return:
     """
+
     def __init__(self, client_conn: ServerSideClientConn, thread_Q):
         super().__init__(client_conn, thread_Q)
         self.thread_Q = thread_Q
@@ -171,7 +171,7 @@ class HearthBeatRequestHandler(BaseRequestHandler):
         self.data = self.recv()
         logger.debug("heartbeat recieved: {}".format(self.data))
 
-        #passing msg to queue
+        # passing msg to queue
         self.pass_to_handler.put(self.data)
         res = RespondsePackage("ACK", "ACK")
         res.pack()
@@ -184,6 +184,7 @@ class ShutDownRequestHandler(BaseRequestHandler):
     Handle shutdown requests, which are used to kill servers
     :return:
     """
+
     def __init__(self, client_conn: ServerSideClientConn, thread_Q):
         super().__init__(client_conn, thread_Q)
 
@@ -324,8 +325,6 @@ class BaseServer(object):
 
                 self._manage_writable_sockets()
 
-
-
                 time.sleep(0.1)
 
             except Exception as err:
@@ -345,7 +344,7 @@ class BaseServer(object):
             try:
                 self.process_request(client_conn)
             except (ConnectionAbortedError, ConnectionResetError) as err:
-                logger.debug("{} closing connection {}:{}".format(self.server_type,*client_conn.peername()))
+                logger.debug("{} closing connection {}:{}".format(self.server_type, *client_conn.peername()))
                 if client_conn.socket in self._send_sockets:
                     self._send_sockets.remove(client_conn.socket)
                 if client_conn.socket in self._recv_sockets:
@@ -477,9 +476,10 @@ class PrimaryServer(MainServer):
 
 class ProxyServer(BaseServer):
 
-    def __init__(self, request_handler: ProxyRequestHandler, server_conn: ClientConn, hostname, port, Q:Queue, max_client_count ,
-                 server_type='proxy',):
-        super().__init__(request_handler, hostname, port, max_client_count = max_client_count)
+    def __init__(self, request_handler: ProxyRequestHandler, server_conn: ClientConn, hostname, port, Q: Queue,
+                 max_client_count,
+                 server_type='proxy', ):
+        super().__init__(request_handler, hostname, port, max_client_count=max_client_count)
         self.client_tags = 'clt'
         self.server_type = server_type
         self.server_conn = server_conn
@@ -504,15 +504,15 @@ class ProxyServer(BaseServer):
             logger.info('new primary server {} registered on proxy'.format(data))
 
 
-
 class ProxyRegisterPrimaryServer(BaseServer):
 
     def __init__(self, request_handler: ProxyRegisterPrimaryRequestHandler, hostname, port, timeout: int = None,
-                 server_type='register-primary', Q=None, max_client_count = 5):
-        super().__init__(request_handler, hostname, port, timeout=timeout, max_client_count = 1)
+                 server_type='register-primary', Q=None, max_client_count=5):
+        super().__init__(request_handler, hostname, port, timeout=timeout, max_client_count=1)
         self.client_tags = 'clt'
         self.server_type = server_type
         self.pass_to_handler = Q
+
 
 class ShutdownServer(BaseServer):
 
@@ -568,6 +568,7 @@ class BaseMulitThreadAdmin(object):
         raise NotImplementedError
 
     def start_shutdown_socket(self):
+        logger.info(f"{self.name}: starting shutdown socket")
         if not self.shutdow_socket_started:
             sh = ShutdownServer(ShutDownRequestHandler,
                                 self.parsed_args.shutdown_sap[0],

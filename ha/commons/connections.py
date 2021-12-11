@@ -132,4 +132,4 @@ class ClientConn(BaseConn):
             self.socket.connect(self.addr)
             logger.info('connected to server: {}:{}'.format(*self.addr))
         except Exception as err:
-            raise OSError("couldn't connect to {}:{}- Error: {}".format(self.addr[0], self.addr[1], err))
+            raise OSError("couldn't connect to {}:{} Error: {}".format(self.addr[0], self.addr[1], err))

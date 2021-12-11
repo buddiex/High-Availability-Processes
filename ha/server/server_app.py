@@ -2,9 +2,11 @@ import signal
 import subprocess
 import argparse
 import os
+import sys
 import time
 from queue import Empty
 from random import randint
+import shlex
 
 from ha.commons.clients import HearBeatClient, TupleSpaceClient,RegisterOnProxyClient
 from ha.commons.logger import get_module_logger
@@ -16,7 +18,7 @@ from ha.server.tuple_space_app.tuplespace_app import TupleSpaceApp
 logger = get_module_logger(__name__)
 
 
-class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
+class ServerMainThread(BaseMulitThreadAdmin):
 
     def __init__(self, parsed_args: argparse.ArgumentParser(), app: TupleSpaceApp):
         super().__init__(parsed_args)
@@ -87,33 +89,32 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
         logger.info('backup is now primary')
 
     def start_backup(self) -> None:
+        logger.info(f"{self.name}: starting backup server")
         if not self.backup_started:
             """ Start backup service with specific arguments"""
             # use os.getpid() get process id that can be used to kill the primary process
             # add additional parameters for the backup service
-            backup_start_cmd = """python "{}" server -tpfile "{}" -tpsap "{}" -shutdown "{}" -heartbeat "{}" -backup "{}" -bk_shutdown "{}" -bk_heartbeat "{}" -proxy "{}" --is_primary "{}" -primary_id "{}"
-              """.format(self.server_script_name,
-                         self.parsed_args.tuple_space_file,
-
-                         (self.parsed_args.backup_sap[0], self.parsed_args.backup_sap[1]),
-                         (self.parsed_args.bk_shutdown_sap[0], self.parsed_args.bk_shutdown_sap[1]),
-                         (self.parsed_args.bk_heartbeat_sap[0], self.parsed_args.bk_heartbeat_sap[1]),
-
-                         (self.parsed_args.tp_sap[0], self.parsed_args.tp_sap[1]),
-                         (self.parsed_args.shutdown_sap[0], self.parsed_args.shutdown_sap[1]),
-                         (self.parsed_args.heartbeat_sap[0], self.parsed_args.heartbeat_sap[1]),
-
-                         (self.parsed_args.proxy_sap[0], self.parsed_args.proxy_sap[1]),
-
-                         'false',
-                         str(os.getpid())
-                         )
+            backup_start_cmd = f"""{sys.executable} {self.server_script_name} \
+server \
+-tpfile "{self.parsed_args.tuple_space_file}" \
+-tpsap "{self.parsed_args.backup_sap[0]}:{self.parsed_args.backup_sap[1]}" \
+-shutdown "{self.parsed_args.bk_shutdown_sap[0]}:{self.parsed_args.bk_shutdown_sap[1]}" \
+-heartbeat "{self.parsed_args.bk_heartbeat_sap[0]}:{self.parsed_args.bk_heartbeat_sap[1]}" \
+-backup "{self.parsed_args.tp_sap[0]}:{self.parsed_args.tp_sap[1]}" \
+-bk_shutdown "{self.parsed_args.shutdown_sap[0]}:{self.parsed_args.shutdown_sap[1]}" \
+-bk_heartbeat "{self.parsed_args.heartbeat_sap[0]}:{self.parsed_args.heartbeat_sap[1]}" \
+-proxy "{self.parsed_args.proxy_sap[0]}:{self.parsed_args.proxy_sap[1]}" \
+--is_primary "false" \
+-primary_id "{str(os.getpid())}"
+               """
 
             logger.info("Starting backup server")
-            subprocess.Popen(backup_start_cmd, shell=False, stdout=None)
+            p = subprocess.Popen(shlex.split(backup_start_cmd))
             self.backup_started = True
+            self.backup_process_id = p.pid
 
     def start_main_tps_server(self):
+        logger.info(f"{self.name}: start main server")
         tps = MainServer(PrimaryServerRequestHandler,
                          self.parsed_args.tp_sap[0],
                          self.parsed_args.tp_sap[1],
@@ -123,6 +124,7 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
         self.start_thread(tps.serve_forever, tps.server_type + '-tps-server')
 
     def start_heartbeat_socket(self, ):
+        logger.info(f"{self.name}: start heartbeat socket")
         if not self.heart_beat_server_started:
             hb = HeartBeatServer(HearthBeatRequestHandler,
                                  self.parsed_args.heartbeat_sap[0],
@@ -132,6 +134,7 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
             self.heart_beat_server_started = True
 
     def start_heartbeat_client(self):
+        logger.info("start heartbeat client")
         if not self.heart_beat_client_stared:
             try:
                 hb_client = HearBeatClient(self.parsed_args.bk_heartbeat_sap[0], self.parsed_args.bk_heartbeat_sap[1],
@@ -143,6 +146,7 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
             self.heart_beat_client_stared = True
 
     def get_first_heartbeat(self):
+        logger.info(f"{self.name}: wait for backup heartbeat")
         try:
             logger.info("waiting for first heartbeat")
             data = self.thread_Q.get(timeout=conf.HEARTBEAT_WAIT_TIME)
@@ -181,7 +185,7 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
                 self.restart_backup()
 
     def register_on_proxy(self):
-        # # @TODO: NIYI
+        logger.info(f"{self.name}: register on proxy")
         if self.isPrimary and not self.registered_on_proxy:
             try:
                 logger.info('primary registering with proxy server')
@@ -195,6 +199,7 @@ class TupleSpaceThreadAdmin(BaseMulitThreadAdmin):
         pass
 
     def update_backup(self,cmd='', msg=''):
+        logger.info(f"{self.name}: update backup server")
         bk_tp_service = TupleSpaceClient(self.parsed_args.backup_sap[0], self.parsed_args.backup_sap[1])
         if self.isPrimary:
             if self.initial_backup_update:

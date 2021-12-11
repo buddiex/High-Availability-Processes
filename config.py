@@ -16,23 +16,23 @@ PROXY_PRIMARY_REG_IP = 'localhost'  # listen for shutdown and primary register c
 PROXY_PRIMARY_REG_PORT = 9989  #
 
 
-PRIMARY_SERVER_2_PROXY_IP = 'localhost'  # default to server on this host
-PRIMARY_SERVER_2_PROXY_PORT = 9998  # default to port 10000 on this host
-PRIMARY_SERVER_SHUTDOWN_IP = 'localhost'  # default to server on this host
-PRIMARY_SERVER_SHUTDOWN_PORT = 9996  # default to port 10000 on this host
-PRIMARY_SERVER_HEARTBEAT_IP = 'localhost'  # default to server on this host
-PRIMARY_SERVER_HEARTBEAT_PORT = 9995  # default to port 10000 on this host
-PRIMARY_SERVER_UPDATE_IP = 'localhost'  # default to server on this host
-PRIMARY_SERVER_UPDATE_PORT = 9990  # default to port 10000 on this host
+PRIMARY_SERVER_2_PROXY_IP = 'localhost'  
+PRIMARY_SERVER_2_PROXY_PORT = 9998  
+PRIMARY_SERVER_SHUTDOWN_IP = 'localhost'  
+PRIMARY_SERVER_SHUTDOWN_PORT = 9906
+PRIMARY_SERVER_HEARTBEAT_IP = 'localhost'  
+PRIMARY_SERVER_HEARTBEAT_PORT = 9995  
+PRIMARY_SERVER_UPDATE_IP = 'localhost'  
+PRIMARY_SERVER_UPDATE_PORT = 9990  
 
-BACKUP_SERVER_2_PROXY_IP = 'localhost'  # default to server on this host
-BACKUP_SERVER_2_PROXY_PORT = 9994  # default to port 10000 on this host
-BACKUP_SERVER_SHUTDOWN_IP = 'localhost'  # default to server on this host
-BACKUP_SERVER_SHUTDOWN_PORT = 9993  # default to port 10000 on this host
-BACKUP_SERVER_HEARTBEAT_IP = 'localhost'  # default to server on this host
-BACKUP_SERVER_HEARTBEAT_PORT = 9992  # default to port 10000 on this host
-BACKUP_SERVER_UPDATE_IP = 'localhost'  # default to server on this host
-BACKUP_SERVER_UPDATE_PORT = 9991  # default to port 10000 on this host
+BACKUP_SERVER_2_PROXY_IP = 'localhost'  
+BACKUP_SERVER_2_PROXY_PORT = 9994  
+BACKUP_SERVER_SHUTDOWN_IP = 'localhost'  
+BACKUP_SERVER_SHUTDOWN_PORT = 9903
+BACKUP_SERVER_HEARTBEAT_IP = 'localhost'  
+BACKUP_SERVER_HEARTBEAT_PORT = 9992  
+BACKUP_SERVER_UPDATE_IP = 'localhost'  
+BACKUP_SERVER_UPDATE_PORT = 9991  
 
 
 REGISTER_WAIT_TIME = 20

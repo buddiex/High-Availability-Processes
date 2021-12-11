@@ -75,8 +75,8 @@ def start_tcp_mock_server(host, port):
     mock_server_thread.start()
 
 
-def start_tcp_main_server(host, port):
-    server = MainServer(ServerEchoRequestHandler, host, port)
+def start_tcp_main_server(host, port, app_to_run):
+    server = MainServer(ServerEchoRequestHandler, host, port, app_to_run)
     mock_server_thread = Thread(target=server.serve_forever)
     mock_server_thread.setDaemon(True)
     mock_server_thread.start()

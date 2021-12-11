@@ -1,32 +1,32 @@
 import unittest
 import pytest
 from unittest.mock import patch
-from ha.commons.connections import ClientConn
 from ha.commons.clients import TupleSpaceClient
 from tests.mocks import start_mock_server, get_free_port, start_tcp_mock_server, start_tcp_main_server
 from ha.commons.clients import get_users, client
 
+HOST = "localhost"
 
-# class TestMockServer(unittest.TestCase):
-#
-#     def setUp(self):
-#         self.mock_server_port = get_free_port()
-#         start_mock_server(self.mock_server_port)
-#
-#     def test_request_response(self):
-#         mock_users_url = 'http://localhost:{port}/users'.format(port=self.mock_server_port)
-#
-#         # Patch USERS_URL so that the service uses the mock server URL instead of the real URL.
-#         with patch.dict('ha.commons.services.__dict__', {'USERS_URL': mock_users_url}):
-#             response = get_users()
-#
-#         # self.assertDictContainsSubset({'Content-Type': 'application/json; charset=utf-8'}, response.headers)
-#         self.assertTrue(response.ok)
-#         self.assertListEqual(response.json(), [])
+
+class TestMockServer(unittest.TestCase):
+
+    def setUp(self):
+        self.mock_server_port = get_free_port()
+        start_mock_server(self.mock_server_port)
+
+    def test_request_response(self):
+        mock_users_url = 'http://localhost:{port}/users'.format(port=self.mock_server_port)
+
+        # Patch USERS_URL so that the service uses the mock server URL instead of the real URL.
+        with patch.dict('ha.commons.services.__dict__', {'USERS_URL': mock_users_url}):
+            response = get_users()
+
+        # self.assertDictContainsSubset({'Content-Type': 'application/json; charset=utf-8'}, response.headers)
+        self.assertTrue(response.ok)
+        self.assertListEqual(response.json(), [])
 
 @pytest.fixture()
 def server1():
-    HOST = "localhost"
     mock_server_port = get_free_port()
     start_tcp_mock_server(HOST, mock_server_port)
     req = TupleSpaceClient(HOST, mock_server_port)
@@ -35,7 +35,6 @@ def server1():
 
 @pytest.fixture()
 def server():
-    HOST = "localhost"
     mock_server_port = get_free_port()
     start_tcp_main_server(HOST, mock_server_port)
     req = TupleSpaceClient(HOST, mock_server_port)

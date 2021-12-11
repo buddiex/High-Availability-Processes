@@ -1,6 +1,7 @@
 import json
 import re
 from ha.commons.utils import validate_reg_ex
+from loguru import logger
 
 
 class TupleSpaceApp:
@@ -11,6 +12,7 @@ class TupleSpaceApp:
         pass
 
     def init(self):
+        logger.info("initializing Application ")
         self.load_tuple_space()
 
     def get(self, data):
